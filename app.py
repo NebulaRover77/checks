@@ -86,7 +86,7 @@ def _boto3_available() -> bool:
 
 def _sso_backend_requires_keyring() -> bool:
     backend = os.getenv("SSO_CACHE_BACKEND", "auto").strip().lower()
-    return backend in {"auto", "keyring"}
+    return backend == "keyring"
 
 
 def _dsql_is_authenticated(start_url: str, cfg: dict) -> bool:
