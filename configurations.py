@@ -1,12 +1,18 @@
 # configurations.py
 from pathlib import Path
 import json, os
-from platformdirs import user_config_dir
+
+try:
+    from platformdirs import user_config_dir
+except ModuleNotFoundError:
+    user_config_dir = None
 
 _APP_NAME = "Checks"
 
 def _config_dir() -> Path:
-    return Path(user_config_dir(_APP_NAME))
+    if user_config_dir is not None:
+        return Path(user_config_dir(_APP_NAME))
+    return Path(os.getenv("SETTINGS_DIR", Path.home() / ".config")) / _APP_NAME
 
 def get_config_path() -> Path:
     """Public helper so other modules can show a friendly path in errors."""
