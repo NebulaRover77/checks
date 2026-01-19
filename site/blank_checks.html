@@ -25,12 +25,20 @@
             <div class="form-callout">
               <p class="callout-title">Account selection</p>
               <label>
+                Account source
+                <select id="account-source">
+                  <option value="local" selected>Saved accounts</option>
+                  <option value="dsql">DSQL</option>
+                </select>
+              </label>
+              <label>
                 Saved accounts
                 <select id="account-select">
                   <option value="">Select an account</option>
                 </select>
               </label>
               <button class="button ghost" type="button" id="account-load">Load account</button>
+              <p class="status" id="dsql-status" role="status" aria-live="polite"></p>
             </div>
 
             <div class="form-callout">

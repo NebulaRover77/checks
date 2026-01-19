@@ -35,6 +35,22 @@
             <button class="button ghost" type="button" id="sso-login">
               Log in with SSO
             </button>
+            <div class="form-callout">
+              <p class="callout-title">DSQL device login</p>
+              <p>Start a device-based SSO login to authorize DSQL access.</p>
+              <button class="button ghost" type="button" id="sso-device-start">
+                Start device login
+              </button>
+              <div id="sso-device-info" hidden>
+                <p>
+                  Visit
+                  <a href="#" target="_blank" rel="noreferrer" id="sso-device-link">the sign-in page</a>
+                  and enter this code:
+                </p>
+                <p class="callout-title" id="sso-device-code"></p>
+              </div>
+              <p class="status" id="sso-device-status" role="status" aria-live="polite"></p>
+            </div>
           </form>
 
           <div class="card check-preview">
