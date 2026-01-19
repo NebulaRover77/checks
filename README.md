@@ -13,6 +13,12 @@ docker run --rm -p 8080:8080 checkcraft
 
 Then visit `http://localhost:8080`.
 
+To persist saved presets, mount a dedicated volume for settings:
+
+```bash
+docker run --rm -p 8080:8080 -v checkcraft_settings:/data -e SETTINGS_DIR=/data checkcraft
+```
+
 > Note: If you want to use MICR or Avenir fonts, add `fonts/AvenirBook.ttf` and
 > `fonts/MICR.ttf` under the project root. The default CLI and web flow work
 > without them, but advanced templates rely on those files.
