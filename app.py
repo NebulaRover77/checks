@@ -331,7 +331,7 @@ def save_global_settings():
         return jsonify({"error": "SSO region must look like us-west-2."}), 400
     if aws_region and not re.fullmatch(r"[a-z0-9-]+", aws_region):
         return jsonify({"error": "AWS region must look like us-west-2."}), 400
-    if account_id and not re.fullmatch(r"\\d{12}", account_id):
+    if account_id and not re.fullmatch(r"\d{12}", account_id):
         return jsonify({"error": "Account ID must be a 12-digit number."}), 400
     settings = load_settings()
     settings["global"]["sso_url"] = sso_url
