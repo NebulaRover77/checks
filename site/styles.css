@@ -294,6 +294,18 @@ a {
   border: 2px solid #0f172a;
 }
 
+.check-preview.compact {
+  gap: 12px;
+}
+
+.check-preview.compact .label {
+  margin-bottom: 4px;
+}
+
+.check-preview.compact .signature {
+  padding-top: 8px;
+}
+
 .check-top,
 .check-middle,
 .check-bottom {

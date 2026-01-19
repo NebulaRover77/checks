@@ -525,21 +525,13 @@ def generate():
     checks_per_page = parse_int(form.get("checks_per_page", "1"), 1)
     position = parse_int(form.get("position", "1"), 1)
 
-    micr_file = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
-    micr_file.close()
-    nomicr_file = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
-    nomicr_file.close()
-    zip_file = tempfile.NamedTemporaryFile(suffix=".zip", delete=False)
-    zip_file.close()
+    tmp_file = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+    tmp_file.close()
 
     @after_this_request
     def cleanup(response):
         try:
-            for filename in (micr_file.name, nomicr_file.name, zip_file.name):
-                try:
-                    os.remove(filename)
-                except FileNotFoundError:
-                    pass
+            os.remove(tmp_file.name)
         except FileNotFoundError:
             pass
         return response

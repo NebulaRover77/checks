@@ -265,6 +265,8 @@ def poll_device_authorization(
         return {"status": "slow_down"}
     except oidc.exceptions.ExpiredTokenException:
         return {"status": "expired"}
+    except oidc.exceptions.InvalidGrantException:
+        return {"status": "expired"}
 
     now = int(time.time())
     access_token = token["accessToken"]
