@@ -90,12 +90,12 @@ def _psycopg2_available() -> bool:
     return importlib.util.find_spec("psycopg2") is not None
 
 
-def _dsql_service_available() -> bool:
+def _dsql_service_available(region: str) -> bool:
     try:
         import boto3
         from botocore.exceptions import UnknownServiceError
 
-        boto3.session.Session().client("dsql")
+        boto3.session.Session().client("dsql", region_name=region)
         return True
     except UnknownServiceError:
         return False
@@ -445,7 +445,7 @@ def list_dsql_accounts():
         return jsonify({"error": str(exc)}), 400
     if not _boto3_available():
         return jsonify({"error": "boto3 is not available."}), 400
-    if not _dsql_service_available():
+    if not _dsql_service_available(cfg["AWS_REGION"]):
         return jsonify({"error": "boto3 does not support the DSQL service."}), 400
     if not _psycopg2_available():
         return jsonify({"error": "psycopg2 is not available."}), 400
@@ -474,7 +474,7 @@ def update_dsql_next_check(account_id: str):
         return jsonify({"error": str(exc)}), 400
     if not _boto3_available():
         return jsonify({"error": "boto3 is not available."}), 400
-    if not _dsql_service_available():
+    if not _dsql_service_available(cfg["AWS_REGION"]):
         return jsonify({"error": "boto3 does not support the DSQL service."}), 400
     if not _psycopg2_available():
         return jsonify({"error": "psycopg2 is not available."}), 400
@@ -562,7 +562,7 @@ def generate_blank():
             return jsonify({"error": str(exc)}), 400
         if not _boto3_available():
             return jsonify({"error": "boto3 is not available."}), 400
-        if not _dsql_service_available():
+        if not _dsql_service_available(cfg["AWS_REGION"]):
             return jsonify({"error": "boto3 does not support the DSQL service."}), 400
         if not _psycopg2_available():
             return jsonify({"error": "psycopg2 is not available."}), 400
