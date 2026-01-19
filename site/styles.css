@@ -41,15 +41,34 @@ a {
   margin-bottom: 56px;
 }
 
+.nav-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
 .logo {
   font-weight: 700;
   font-size: 1.25rem;
 }
 
 .nav-links a {
-  margin-left: 24px;
   font-weight: 500;
   color: #cbd5f5;
+}
+
+#top-nav {
+  background: #0f172a;
+  color: #f8fafc;
+  padding: 20px 56px;
+}
+
+#top-nav .nav {
+  margin-bottom: 0;
+}
+
+#top-nav .nav-links a {
+  color: #e2e8f0;
 }
 
 .hero-content {
