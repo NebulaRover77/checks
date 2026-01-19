@@ -258,3 +258,68 @@ def create_check(payee, amount, date, memo, position=1, filename="check.pdf",
     pdf = PDF(checks_per_page=checks_per_page, page_size=page_size)
     add_check_info(pdf, payee, amount, date, memo, position=position)
     pdf.output(filename)
+
+
+def add_check_titles_safe(pdf, position=1):
+    try:
+        add_check_titles(pdf, position=position)
+    except RuntimeError:
+        pass
+
+
+def add_micr_line_safe(pdf, check_number, routing_number, account_number, style="A", position=1):
+    try:
+        add_micr_line(
+            pdf,
+            check_number=check_number,
+            routing_number=routing_number,
+            account_number=account_number,
+            style=style,
+            position=position,
+        )
+    except RuntimeError:
+        pass
+
+
+def create_blank_checks(
+    *,
+    filename: str,
+    checks_per_page: int,
+    page_size: tuple[float, float],
+    total_checks: int,
+    first_check_number: int,
+    owner_name: str | None = None,
+    owner_address: str | None = None,
+    bank_name: str | None = None,
+    bank_address: str | None = None,
+    fractional_routing: str | None = None,
+    routing_number: str | None = None,
+    account_number: str | None = None,
+    micr_style: str = "A",
+) -> None:
+    pdf = PDF(checks_per_page=checks_per_page, page_size=page_size)
+    for idx in range(total_checks):
+        if idx and idx % checks_per_page == 0:
+            pdf.add_page()
+        position = (idx % checks_per_page) + 1
+        add_check_titles_safe(pdf, position=position)
+        add_owner_info(pdf, owner_name=owner_name, owner_address=owner_address, position=position)
+        add_bank_info(
+            pdf,
+            bank_name=bank_name,
+            bank_address=bank_address,
+            fract_routing_num=fractional_routing,
+            position=position,
+        )
+        check_number = first_check_number + idx
+        add_check_number(pdf, check_number, position=position)
+        if routing_number and account_number:
+            add_micr_line_safe(
+                pdf,
+                check_number=check_number,
+                routing_number=routing_number,
+                account_number=account_number,
+                style=micr_style,
+                position=position,
+            )
+    pdf.output(filename)
