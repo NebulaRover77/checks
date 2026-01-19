@@ -12,7 +12,7 @@ KEYRING_SERVICE = "checks-app-sso"
 SKEW = 60  # seconds of safety around expirations
 DEVICE_GRANT = "urn:ietf:params:oauth:grant-type:device_code"
 REFRESH_GRANT = "refresh_token"
-SSO_CACHE_BACKEND = os.getenv("SSO_CACHE_BACKEND", "file").strip().lower()
+SSO_CACHE_BACKEND = os.getenv("SSO_CACHE_BACKEND", "keyring").strip().lower()
 SSO_CACHE_FILENAME = os.getenv("SSO_CACHE_FILENAME", "sso_cache.json")
 
 # populated at runtime by _register_client()

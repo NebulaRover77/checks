@@ -15,6 +15,8 @@ import configurations
 
 app = Flask(__name__, static_folder="site", static_url_path="")
 
+os.environ.setdefault("SSO_CACHE_BACKEND", "file")
+
 PAGE_SIZES = {
     "single": (8.5, 4.0),
     "double": (8.5, 7.5),
