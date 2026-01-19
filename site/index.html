@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CheckCraft — Check Generator</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <header class="hero">
+      <nav class="nav">
+        <div class="logo">CheckCraft</div>
+        <div class="nav-links">
+          <a href="/preview.html">Preview page</a>
+        </div>
+      </nav>
+      <div class="hero-content">
+        <div>
+          <p class="tag">Check generator</p>
+          <h1>Create a printable check PDF.</h1>
+          <p class="subtitle">
+            Enter your check details below. When you submit, the server generates
+            the same PDF as the CLI and sends it to your browser.
+          </p>
+          <div class="hero-actions">
+            <a class="button ghost" href="/preview.html">See the preview site</a>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section id="preview" class="section preview">
+        <div class="section-header">
+          <h2>Interactive preview</h2>
+          <p>Fill out the form and download your PDF.</p>
+        </div>
+        <div class="preview-grid">
+          <form class="card form" id="check-form" method="post" action="/generate">
+            <label>
+              Payee name
+              <input type="text" name="payee" value="Acme Office Supplies" />
+            </label>
+            <label>
+              Amount (USD)
+              <input type="number" name="amount" step="0.01" value="1520.75" />
+            </label>
+            <label>
+              Date
+              <input type="text" name="date" value="01/19/2024" />
+            </label>
+            <label>
+              Memo
+              <input type="text" name="memo" value="January inventory" />
+            </label>
+            <label>
+              Page size
+              <select name="page_size" id="page-size">
+                <option value="single">8.5 × 4.0 (one check)</option>
+                <option value="double">8.5 × 7.5 (two checks)</option>
+                <option value="triple" selected>8.5 × 11.0 (three checks)</option>
+                <option value="custom">Custom</option>
+              </select>
+            </label>
+            <div class="custom-size" id="custom-size" hidden>
+              <label>
+                Custom width (inches)
+                <input type="number" name="custom_width" step="0.1" value="8.5" />
+              </label>
+              <label>
+                Custom height (inches)
+                <input type="number" name="custom_height" step="0.1" value="11" />
+              </label>
+            </div>
+            <label>
+              Checks per page
+              <select name="checks_per_page">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3" selected>3</option>
+              </select>
+            </label>
+            <label>
+              First check position
+              <select name="position">
+                <option value="1" selected>1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+              </select>
+            </label>
+            <button class="button primary" type="submit">Generate PDF</button>
+            <button class="button ghost" type="button" id="reset">Reset example</button>
+          </form>
+
+          <div class="card check-preview" aria-live="polite">
+            <div class="check-top">
+              <div>
+                <p class="label">Pay to the order of</p>
+                <p class="payee" id="preview-payee">Acme Office Supplies</p>
+              </div>
+              <div>
+                <p class="label">Date</p>
+                <p class="value" id="preview-date">01/19/2024</p>
+              </div>
+            </div>
+            <div class="check-middle">
+              <div>
+                <p class="label">Amount in words</p>
+                <p class="value" id="preview-words">One Thousand Five Hundred Twenty and 75/100</p>
+              </div>
+              <div class="amount-box">
+                <span>$</span>
+                <span id="preview-amount">1,520.75</span>
+              </div>
+            </div>
+            <div class="check-bottom">
+              <div>
+                <p class="label">Memo</p>
+                <p class="value" id="preview-memo">January inventory</p>
+              </div>
+              <div>
+                <p class="label">Layout</p>
+                <p class="value" id="preview-layout">3 per page</p>
+              </div>
+            </div>
+            <div class="signature">Authorized signature</div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <p>CheckCraft is open-source and designed for fast check printing workflows.</p>
+    </footer>
+
+    <script src="app.js"></script>
+  </body>
+</html>
