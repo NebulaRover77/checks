@@ -14,15 +14,7 @@
   </head>
   <body>
     <header class="hero">
-      <nav class="nav">
-        <div class="logo">CheckCraft</div>
-        <div class="nav-links">
-          <a href="/">Generator</a>
-          <a href="#preview">Preview</a>
-          <a href="#how">How it works</a>
-          <a href="#get-started">Get started</a>
-        </div>
-      </nav>
+      <div id="top-nav"></div>
       <div class="hero-content">
         <div>
           <p class="tag">Open-source check generator</p>
@@ -60,6 +52,12 @@
         </div>
         <div class="preview-grid">
           <form class="card form" id="check-form" method="post" action="/generate">
+            <p class="form-note">
+              Need blank checks? <a href="/blank_checks.html">Print blank checks</a>.
+            </p>
+            <p class="form-note">
+              Manage shared settings in <a href="/settings.html">Global settings</a>.
+            </p>
             <label>
               Payee name
               <input type="text" name="payee" value="Acme Office Supplies" />
@@ -76,6 +74,21 @@
               Memo
               <input type="text" name="memo" value="January inventory" />
             </label>
+            <div class="preset-controls">
+              <label>
+                Saved presets
+                <select id="preset-select">
+                  <option value="">Select a preset</option>
+                </select>
+              </label>
+              <button class="button ghost" type="button" id="preset-load">Load preset</button>
+              <label>
+                Preset name
+                <input type="text" id="preset-name" placeholder="e.g., vendor-payments" />
+              </label>
+              <button class="button ghost" type="button" id="preset-save">Save preset</button>
+              <p class="preset-status" id="preset-status" role="status" aria-live="polite"></p>
+            </div>
             <label>
               Page size
               <select name="page_size" id="page-size">
@@ -198,6 +211,7 @@
       <p>CheckCraft is open-source and designed for fast check printing workflows.</p>
     </footer>
 
+    <script src="nav.js"></script>
     <script src="app.js"></script>
   </body>
 </html>
