@@ -12,6 +12,12 @@ const preview = {
   layout: document.getElementById("preview-layout"),
 };
 
+const presetSelect = document.getElementById("preset-select");
+const presetLoadButton = document.getElementById("preset-load");
+const presetNameInput = document.getElementById("preset-name");
+const presetSaveButton = document.getElementById("preset-save");
+const presetStatus = document.getElementById("preset-status");
+
 const defaults = {
   payee: "",
   amount: "0.00",
@@ -119,6 +125,51 @@ function updatePreview() {
   preview.layout.textContent = `${checksPerPage} per page`;
 }
 
+function setStatus(message, isError = false) {
+  if (!presetStatus) return;
+  presetStatus.textContent = message;
+  presetStatus.classList.toggle("error", isError);
+}
+
+function getFormValues() {
+  const data = new FormData(form);
+  const values = {};
+  data.forEach((value, key) => {
+    values[key] = value.toString();
+  });
+  return values;
+}
+
+function applyPreset(values) {
+  Object.entries({ ...defaults, ...values }).forEach(([key, value]) => {
+    if (form.elements[key]) {
+      form.elements[key].value = value;
+    }
+  });
+  pageSizeSelect.dispatchEvent(new Event("change"));
+  updatePreview();
+}
+
+async function refreshPresets() {
+  if (!presetSelect) return;
+  try {
+    const response = await fetch("/api/settings");
+    if (!response.ok) throw new Error("Failed to load presets.");
+    const payload = await response.json();
+    presetSelect.innerHTML = '<option value="">Select a preset</option>';
+    payload.settings.forEach((name) => {
+      const option = document.createElement("option");
+      option.value = name;
+      option.textContent = name;
+      presetSelect.appendChild(option);
+    });
+    presetLoadButton.disabled = payload.settings.length === 0;
+  } catch (error) {
+    presetLoadButton.disabled = true;
+    setStatus("Unable to load presets right now.", true);
+  }
+}
+
 form.addEventListener("input", updatePreview);
 
 resetButton.addEventListener("click", () => {
@@ -136,3 +187,49 @@ pageSizeSelect.addEventListener("change", () => {
 
 pageSizeSelect.dispatchEvent(new Event("change"));
 updatePreview();
+refreshPresets();
+
+if (presetLoadButton) {
+  presetLoadButton.addEventListener("click", async () => {
+    const selected = presetSelect.value;
+    if (!selected) {
+      setStatus("Select a preset to load.", true);
+      return;
+    }
+    try {
+      const response = await fetch(`/api/settings/${encodeURIComponent(selected)}`);
+      if (!response.ok) throw new Error("Preset not found.");
+      const payload = await response.json();
+      applyPreset(payload.data || {});
+      setStatus(`Loaded preset "${payload.name}".`);
+    } catch (error) {
+      setStatus("Unable to load preset.", true);
+    }
+  });
+}
+
+if (presetSaveButton) {
+  presetSaveButton.addEventListener("click", async () => {
+    const name = presetNameInput.value.trim();
+    if (!name) {
+      setStatus("Add a preset name before saving.", true);
+      return;
+    }
+    try {
+      const response = await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, data: getFormValues() }),
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || "Unable to save preset.");
+      }
+      await refreshPresets();
+      presetSelect.value = name;
+      setStatus(`Saved preset "${payload.name}".`);
+    } catch (error) {
+      setStatus(error.message || "Unable to save preset.", true);
+    }
+  });
+}

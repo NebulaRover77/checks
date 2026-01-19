@@ -76,6 +76,21 @@
               Memo
               <input type="text" name="memo" value="January inventory" />
             </label>
+            <div class="preset-controls">
+              <label>
+                Saved presets
+                <select id="preset-select">
+                  <option value="">Select a preset</option>
+                </select>
+              </label>
+              <button class="button ghost" type="button" id="preset-load">Load preset</button>
+              <label>
+                Preset name
+                <input type="text" id="preset-name" placeholder="e.g., vendor-payments" />
+              </label>
+              <button class="button ghost" type="button" id="preset-save">Save preset</button>
+              <p class="preset-status" id="preset-status" role="status" aria-live="polite"></p>
+            </div>
             <label>
               Page size
               <select name="page_size" id="page-size">

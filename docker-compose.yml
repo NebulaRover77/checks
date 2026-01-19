@@ -3,5 +3,12 @@ version: "3.9"
 services:
   web:
     build: .
+    environment:
+      - SETTINGS_DIR=/data
     ports:
       - "8888:8080"
+    volumes:
+      - checkcraft_settings:/data
+
+volumes:
+  checkcraft_settings:

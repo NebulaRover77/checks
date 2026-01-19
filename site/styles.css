@@ -192,6 +192,30 @@ a {
   display: none;
 }
 
+.preset-controls {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 16px;
+  display: grid;
+  gap: 12px;
+  background: #f8fafc;
+}
+
+.preset-controls .button {
+  width: fit-content;
+}
+
+.preset-status {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.preset-status.error {
+  color: #b91c1c;
+}
+
 .check-preview {
   display: grid;
   gap: 20px;
