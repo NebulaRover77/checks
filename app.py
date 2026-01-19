@@ -4,7 +4,7 @@ import os
 import tempfile
 from typing import Tuple
 
-from flask import Flask, after_this_request, request, send_file
+from flask import Flask, after_this_request, redirect, request, send_file
 
 from utilities import create_check
 
@@ -35,7 +35,7 @@ def parse_int(value: str, default: int) -> int:
 
 @app.get("/")
 def index():
-    return app.send_static_file("index.html")
+    return redirect("/generate_check.html")
 
 
 @app.post("/generate")

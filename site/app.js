@@ -13,10 +13,10 @@ const preview = {
 };
 
 const defaults = {
-  payee: "Acme Office Supplies",
-  amount: "1520.75",
+  payee: "",
+  amount: "0.00",
   date: "01/19/2024",
-  memo: "January inventory",
+  memo: "",
   page_size: "triple",
   custom_width: "8.5",
   custom_height: "11",
