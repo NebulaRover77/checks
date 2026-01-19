@@ -1,5 +1,6 @@
 # sso.py
 import json, os, time, webbrowser
+from pathlib import Path
 from urllib.parse import quote_plus
 import keyring
 import keyring.errors as ke
@@ -7,10 +8,14 @@ import boto3
 from botocore.session import get_session
 from botocore.credentials import Credentials
 
+import configurations
+
 KEYRING_SERVICE = "checks-app-sso"
 SKEW = 60  # seconds of safety around expirations
 DEVICE_GRANT = "urn:ietf:params:oauth:grant-type:device_code"
 REFRESH_GRANT = "refresh_token"
+SSO_CACHE_BACKEND = os.getenv("SSO_CACHE_BACKEND", "auto").strip().lower()
+SSO_CACHE_FILENAME = os.getenv("SSO_CACHE_FILENAME", "sso_cache.json")
 
 # populated at runtime by _register_client()
 _register_cache = None
@@ -62,25 +67,79 @@ def _norm_start_url(u: str) -> str:
 def _cache_key(start_url, sso_region, account_id, role_name):
     return f"{_norm_start_url(start_url)}|{sso_region}|{account_id}|{role_name}"
 
+def _cache_path() -> Path:
+    override = os.getenv("SSO_CACHE_PATH")
+    if override:
+        return Path(override)
+    settings_dir = os.getenv("SETTINGS_DIR")
+    if settings_dir:
+        return Path(settings_dir) / SSO_CACHE_FILENAME
+    cfg_path = configurations.get_config_path()
+    return cfg_path.with_name(SSO_CACHE_FILENAME)
+
+def _cache_use_keyring() -> bool:
+    return SSO_CACHE_BACKEND in ("keyring", "auto")
+
+def _cache_use_file() -> bool:
+    return SSO_CACHE_BACKEND in ("file", "auto")
+
+def _load_file_cache() -> dict:
+    path = _cache_path()
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+def _write_file_cache(data: dict) -> bool:
+    path = _cache_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".tmp")
+    try:
+        tmp.write_text(json.dumps(data), encoding="utf-8")
+        tmp.replace(path)
+        return True
+    except Exception:
+        return False
+
 
 def _load_cache(start_url, sso_region, account_id, role_name):
     key = _cache_key(start_url, sso_region, account_id, role_name)
-    raw = keyring.get_password(KEYRING_SERVICE, key)
-    _dbg("load_cache", key, "present:", bool(raw))
-    return (key, json.loads(raw)) if raw else (key, {})
+    if _cache_use_keyring():
+        try:
+            raw = keyring.get_password(KEYRING_SERVICE, key)
+        except ke.KeyringError as exc:
+            _dbg("load_cache keyring failed:", exc)
+            raw = None
+        _dbg("load_cache", key, "present:", bool(raw))
+        if raw:
+            return (key, json.loads(raw))
+    if _cache_use_file():
+        data = _load_file_cache().get(key)
+        _dbg("load_cache file present:", bool(data))
+        if isinstance(data, dict):
+            return (key, data)
+    return (key, {})
 
 
 def _save_cache(cache_key, data):
     payload = json.dumps(data)
-    try:
-        keyring.set_password(KEYRING_SERVICE, cache_key, payload)
-        if keyring.get_password(KEYRING_SERVICE, cache_key) != payload:
-            raise ke.KeyringError("Keychain round-trip verification failed")
-        _dbg("save_cache ok:", cache_key)
-        return True
-    except ke.KeyringError as e:
-        _dbg("save_cache FAILED:", e, "backend:", keyring.get_keyring())
-        return False
+    success = False
+    if _cache_use_keyring():
+        try:
+            keyring.set_password(KEYRING_SERVICE, cache_key, payload)
+            if keyring.get_password(KEYRING_SERVICE, cache_key) != payload:
+                raise ke.KeyringError("Keychain round-trip verification failed")
+            _dbg("save_cache ok:", cache_key)
+            success = True
+        except ke.KeyringError as e:
+            _dbg("save_cache keyring FAILED:", e, "backend:", keyring.get_keyring())
+    if _cache_use_file():
+        file_cache = _load_file_cache()
+        file_cache[cache_key] = data
+        success = _write_file_cache(file_cache) or success
+    return success
 
 
 def _register_client(oidc):
@@ -155,7 +214,7 @@ def sso_login_and_get_session(
 ):
     """
     Returns a boto3.Session authenticated for (account_id, role_name),
-    using Keychain-backed tokens. Writes nothing to ~/.aws.
+    using cached tokens (keyring or file-backed). Writes nothing to ~/.aws.
 
     Strategy:
       1) Reuse cached accessToken if still valid (no browser)
@@ -246,12 +305,17 @@ def sso_login_and_get_session(
 
 def debug_dump_cache(start_url, sso_region, account_id, role_name):
     key = _cache_key(start_url, sso_region, account_id, role_name)
-    raw = keyring.get_password(KEYRING_SERVICE, key)
+    data = None
+    if _cache_use_keyring():
+        raw = keyring.get_password(KEYRING_SERVICE, key)
+        if raw:
+            data = json.loads(raw)
+    if data is None and _cache_use_file():
+        data = _load_file_cache().get(key)
     print("Key:", key)
-    print("Backend:", keyring.get_keyring())
-    print("Present:", bool(raw))
-    if raw:
-        data = json.loads(raw)
+    print("Backend:", "keyring" if _cache_use_keyring() else "file")
+    print("Present:", bool(data))
+    if data:
         print("Has accessToken:", bool(data.get("accessToken")))
         if data.get("accessTokenExpiresAt"):
             print("Access expires in (s):", int(data["accessTokenExpiresAt"] - time.time()))
