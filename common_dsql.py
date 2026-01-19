@@ -1,14 +1,10 @@
 # common_dsql.py
 from __future__ import annotations
-from typing import Optional, Tuple
+from typing import Iterable, Optional, Tuple
 import os
-
-from psycopg2 import connect as _pg_connect
-from psycopg2.extras import RealDictCursor
 
 import configurations
 import dsql_auth
-import sso
 
 
 # ------- settings helpers (no baked defaults) -------
@@ -58,6 +54,12 @@ def _cfg_namespace(account_id: Optional[str] = None, region: Optional[str] = Non
     aid = account_id or _require("ACCOUNT_ID")
     reg = region or _require("AWS_REGION")
     return f"{aid}:{reg}"
+
+
+def get_settings(keys: Optional[Iterable[str]] = None) -> dict[str, str]:
+    """Return required DSQL settings or raise if any are missing."""
+    needed = tuple(keys) if keys is not None else _REQUIRED_KEYS
+    return {key: _require(key) for key in needed}
 
 
 # ---------- tiny helpers ----------
@@ -138,6 +140,8 @@ def sso_login_session(
     open_browser: Optional[bool] = None,
 ):
     """Thin wrapper around your sso.sso_login_and_get_session for consistency."""
+    import sso
+
     return sso.sso_login_and_get_session(
         start_url=start_url or _require("START_URL"),
         sso_region=sso_region or _require("SSO_REGION"),
@@ -207,6 +211,29 @@ def get_token_and_host(
     return token, host
 
 
+def get_cached_token_and_host(
+    user: str,
+    *,
+    region: Optional[str] = None,
+    host_override: Optional[str] = None,
+    dbid_override: Optional[str] = None,
+) -> Optional[Tuple[str, str]]:
+    """
+    Best-effort lookup of cached token + host. Returns None if no cached token is available.
+    """
+    region = region or _require("AWS_REGION")
+    host = host_override or _best_effort_db_host(region=region)
+    dbid = dbid_override or _best_effort_db_id(region=region)
+    if not host and dbid:
+        host = _db_host_from_id(dbid, region)
+    if not host:
+        return None
+    cached = dsql_auth.load_cached_token(host, user, region)
+    if cached:
+        return cached, host
+    return None
+
+
 def connect_db(
     *,
     dbname: Optional[str] = None,
@@ -218,6 +245,9 @@ def connect_db(
     """
     psycopg2 connection with RealDictCursor; mints/uses cached token as needed.
     """
+    from psycopg2 import connect as _pg_connect
+    from psycopg2.extras import RealDictCursor
+
     dbname = dbname or _require("DB_NAME")
     user = user or _require("DB_USER")
     region = region or _require("AWS_REGION")

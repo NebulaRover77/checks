@@ -2,9 +2,6 @@
 import json, time, os
 from pathlib import Path
 
-import keyring
-from keyring.errors import KeyringError
-
 import configurations
 
 # ---- Tunables (env-overridable) ----
@@ -66,6 +63,12 @@ def _cache_use_keyring() -> bool:
 def _cache_use_file() -> bool:
     return CACHE_BACKEND in ("file", "auto")
 
+def _keyring_client():
+    import keyring
+    from keyring.errors import KeyringError
+
+    return keyring, KeyringError
+
 def load_cached_token(host, db_user, region):
     k = (host, db_user, region)
 
@@ -81,6 +84,7 @@ def load_cached_token(host, db_user, region):
 
     # 2) Keyring
     if _cache_use_keyring():
+        keyring, KeyringError = _keyring_client()
         try:
             item = keyring.get_password(KEYRING_SERVICE, _token_key(host, db_user, region))
         except KeyringError:
@@ -124,6 +128,7 @@ def save_cached_token(host, db_user, region, token) -> bool:
 
     # write to Keychain with verification
     if _cache_use_keyring():
+        keyring, KeyringError = _keyring_client()
         try:
             keyring.set_password(KEYRING_SERVICE, key, secret)  # None on success
             roundtrip = keyring.get_password(KEYRING_SERVICE, key)
@@ -146,6 +151,7 @@ def clear_cached_token(host, db_user, region):
     _MEM_CACHE.pop((host, db_user, region), None)
     key = _token_key(host, db_user, region)
     if _cache_use_keyring():
+        keyring, KeyringError = _keyring_client()
         try:
             keyring.delete_password(KEYRING_SERVICE, key)
         except KeyringError:

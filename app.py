@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import re
@@ -18,6 +19,136 @@ PAGE_SIZES = {
     "double": (8.5, 7.5),
     "triple": (8.5, 11.0),
 }
+
+DSQL_ACCOUNT_FIELDS = (
+    "bank_account_id",
+    "routing",
+    "account",
+    "name",
+    "company_name_1",
+    "company_name_2",
+    "company_address_1",
+    "company_address_2",
+    "next_check_number",
+    "bank_name_1",
+    "bank_name_2",
+    "bank_address_1",
+    "bank_address_2",
+    "bank_fractional",
+)
+
+
+def _dsql_required_settings() -> dict:
+    import common_dsql
+
+    return common_dsql.get_settings(
+        ("START_URL", "SSO_REGION", "ACCOUNT_ID", "ROLE_NAME", "AWS_REGION", "DB_NAME", "DB_USER")
+    )
+
+
+def _resolve_start_url(settings: dict, fallback: dict) -> str:
+    return settings.get("global", {}).get("sso_url") or fallback["START_URL"]
+
+
+def _keyring_available() -> bool:
+    return importlib.util.find_spec("keyring") is not None
+
+
+def _boto3_available() -> bool:
+    return importlib.util.find_spec("boto3") is not None
+
+
+def _sso_backend_requires_keyring() -> bool:
+    backend = os.getenv("SSO_CACHE_BACKEND", "auto").strip().lower()
+    return backend in {"auto", "keyring"}
+
+
+def _dsql_is_authenticated(start_url: str, cfg: dict) -> bool:
+    import sso
+
+    return sso.has_cached_access_token(
+        start_url=start_url,
+        sso_region=cfg["SSO_REGION"],
+        account_id=cfg["ACCOUNT_ID"],
+        role_name=cfg["ROLE_NAME"],
+    )
+
+
+def _fetch_dsql_accounts() -> list[dict]:
+    import common_dsql
+
+    with common_dsql.connect_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT
+                    ba.bank_account_id,
+                    ba.routing,
+                    ba.account,
+                    ba.name,
+                    ba.company_name_1,
+                    ba.company_name_2,
+                    ba.company_address_1,
+                    ba.company_address_2,
+                    ba.next_check_number,
+                    b.bank_name_1,
+                    b.bank_name_2,
+                    b.bank_address_1,
+                    b.bank_address_2,
+                    b.bank_fractional
+                FROM bank_accounts ba
+                LEFT JOIN banks b ON b.routing = ba.routing
+                ORDER BY ba.name
+                """
+            )
+            return cur.fetchall()
+
+
+def _fetch_dsql_account(account_id: str) -> dict | None:
+    import common_dsql
+
+    with common_dsql.connect_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT
+                    ba.bank_account_id,
+                    ba.routing,
+                    ba.account,
+                    ba.name,
+                    ba.company_name_1,
+                    ba.company_name_2,
+                    ba.company_address_1,
+                    ba.company_address_2,
+                    ba.next_check_number,
+                    b.bank_name_1,
+                    b.bank_name_2,
+                    b.bank_address_1,
+                    b.bank_address_2,
+                    b.bank_fractional
+                FROM bank_accounts ba
+                LEFT JOIN banks b ON b.routing = ba.routing
+                WHERE ba.bank_account_id = %s
+                """,
+                (account_id,),
+            )
+            return cur.fetchone()
+
+
+def _update_dsql_next_check(account_id: str, next_check_number: int) -> None:
+    import common_dsql
+
+    with common_dsql.connect_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE bank_accounts
+                SET next_check_number = %s
+                WHERE bank_account_id = %s
+                """,
+                (next_check_number, account_id),
+            )
+            conn.commit()
 
 SETTINGS_DIR = Path(os.environ.get("SETTINGS_DIR", "data"))
 SETTINGS_FILE = SETTINGS_DIR / "settings.json"
@@ -167,6 +298,120 @@ def save_global_settings():
     return jsonify({"status": "saved", "settings": settings["global"]})
 
 
+@app.get("/api/sso/status")
+def sso_status():
+    settings = load_settings()
+    try:
+        cfg = _dsql_required_settings()
+    except RuntimeError as exc:
+        return jsonify({"authenticated": False, "error": str(exc)}), 400
+    if not _boto3_available():
+        return jsonify({"authenticated": False, "error": "boto3 is not available."}), 400
+    if _sso_backend_requires_keyring() and not _keyring_available():
+        return jsonify({"authenticated": False, "error": "Keyring is not available. Set SSO_CACHE_BACKEND=file."}), 400
+    start_url = _resolve_start_url(settings, cfg)
+    authenticated = _dsql_is_authenticated(start_url, cfg)
+    return jsonify({"authenticated": authenticated})
+
+
+@app.post("/api/sso/device/start")
+def sso_device_start():
+    settings = load_settings()
+    try:
+        cfg = _dsql_required_settings()
+    except RuntimeError as exc:
+        return jsonify({"error": str(exc)}), 400
+    if not _boto3_available():
+        return jsonify({"error": "boto3 is not available."}), 400
+    if _sso_backend_requires_keyring() and not _keyring_available():
+        return jsonify({"error": "Keyring is not available. Set SSO_CACHE_BACKEND=file."}), 400
+    start_url = _resolve_start_url(settings, cfg)
+    import sso
+
+    auth = sso.start_device_authorization(
+        start_url=start_url,
+        sso_region=cfg["SSO_REGION"],
+        account_id=cfg["ACCOUNT_ID"],
+        role_name=cfg["ROLE_NAME"],
+    )
+    return jsonify(auth)
+
+
+@app.post("/api/sso/device/poll")
+def sso_device_poll():
+    payload = request.get_json(silent=True) or {}
+    device_code = (payload.get("device_code") or "").strip()
+    if not device_code:
+        return jsonify({"error": "Missing device_code."}), 400
+    settings = load_settings()
+    try:
+        cfg = _dsql_required_settings()
+    except RuntimeError as exc:
+        return jsonify({"error": str(exc)}), 400
+    if not _boto3_available():
+        return jsonify({"error": "boto3 is not available."}), 400
+    if _sso_backend_requires_keyring() and not _keyring_available():
+        return jsonify({"error": "Keyring is not available. Set SSO_CACHE_BACKEND=file."}), 400
+    start_url = _resolve_start_url(settings, cfg)
+    import sso
+
+    result = sso.poll_device_authorization(
+        start_url=start_url,
+        sso_region=cfg["SSO_REGION"],
+        account_id=cfg["ACCOUNT_ID"],
+        role_name=cfg["ROLE_NAME"],
+        device_code=device_code,
+    )
+    if result["status"] in {"pending", "slow_down"}:
+        return jsonify(result), 202
+    if result["status"] != "authorized":
+        return jsonify({"error": "Device authorization expired."}), 400
+    return jsonify(result)
+
+
+@app.get("/api/dsql/accounts")
+def list_dsql_accounts():
+    settings = load_settings()
+    try:
+        cfg = _dsql_required_settings()
+    except RuntimeError as exc:
+        return jsonify({"error": str(exc)}), 400
+    if not _boto3_available():
+        return jsonify({"error": "boto3 is not available."}), 400
+    if _sso_backend_requires_keyring() and not _keyring_available():
+        return jsonify({"error": "Keyring is not available. Set SSO_CACHE_BACKEND=file."}), 400
+    start_url = _resolve_start_url(settings, cfg)
+    if not _dsql_is_authenticated(start_url, cfg):
+        return jsonify({"error": "SSO login required for DSQL access."}), 401
+    accounts = _fetch_dsql_accounts()
+    return jsonify({"accounts": accounts, "fields": DSQL_ACCOUNT_FIELDS})
+
+
+@app.post("/api/dsql/accounts/<account_id>/next-check")
+def update_dsql_next_check(account_id: str):
+    payload = request.get_json(silent=True) or {}
+    try:
+        next_check = int(payload.get("next_check_number"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "Next check number must be an integer."}), 400
+    if next_check < 1:
+        return jsonify({"error": "Next check number must be positive."}), 400
+    settings = load_settings()
+    try:
+        cfg = _dsql_required_settings()
+    except RuntimeError as exc:
+        return jsonify({"error": str(exc)}), 400
+    if not _boto3_available():
+        return jsonify({"error": "boto3 is not available."}), 400
+    if _sso_backend_requires_keyring() and not _keyring_available():
+        return jsonify({"error": "Keyring is not available. Set SSO_CACHE_BACKEND=file."}), 400
+    start_url = _resolve_start_url(settings, cfg)
+    if not _dsql_is_authenticated(start_url, cfg):
+        return jsonify({"error": "SSO login required for DSQL access."}), 401
+    _update_dsql_next_check(account_id, next_check)
+    return jsonify({"status": "updated", "account_id": account_id, "next_check_number": next_check})
+
+
 @app.get("/")
 def index():
     return redirect("/generate_check.html")
@@ -232,10 +477,28 @@ def generate():
 def generate_blank():
     form = request.form
     account_name = form.get("account", "")
+    account_source = form.get("account_source", "local")
     settings = load_settings()
-    account = settings["accounts"].get(account_name)
-    if not account:
-        return jsonify({"error": "Account not found."}), 400
+    account = None
+    if account_source == "dsql":
+        try:
+            cfg = _dsql_required_settings()
+        except RuntimeError as exc:
+            return jsonify({"error": str(exc)}), 400
+        if not _boto3_available():
+            return jsonify({"error": "boto3 is not available."}), 400
+        if _sso_backend_requires_keyring() and not _keyring_available():
+            return jsonify({"error": "Keyring is not available. Set SSO_CACHE_BACKEND=file."}), 400
+        start_url = _resolve_start_url(settings, cfg)
+        if not _dsql_is_authenticated(start_url, cfg):
+            return jsonify({"error": "SSO login required for DSQL access."}), 401
+        account = _fetch_dsql_account(account_name)
+        if not account:
+            return jsonify({"error": "DSQL account not found."}), 400
+    else:
+        account = settings["accounts"].get(account_name)
+        if not account:
+            return jsonify({"error": "Account not found."}), 400
 
     first_check_number = parse_int(form.get("first_check_number", "1"), 1)
     total_checks = parse_int(form.get("total_checks", "1"), 1)
@@ -257,20 +520,45 @@ def generate_blank():
             pass
         return response
 
+    if account_source == "dsql":
+        owner_name = "\n".join(
+            filter(None, [account.get("company_name_1"), account.get("company_name_2")])
+        )
+        owner_address = "\n".join(
+            filter(None, [account.get("company_address_1"), account.get("company_address_2")])
+        )
+        bank_name = "\n".join(filter(None, [account.get("bank_name_1"), account.get("bank_name_2")]))
+        bank_address = "\n".join(
+            filter(None, [account.get("bank_address_1"), account.get("bank_address_2")])
+        )
+        routing_number = account.get("routing")
+        account_number = account.get("account")
+        fractional_routing = account.get("bank_fractional")
+        micr_style = "A"
+    else:
+        owner_name = account.get("owner_name")
+        owner_address = account.get("owner_address")
+        bank_name = account.get("bank_name")
+        bank_address = account.get("bank_address")
+        routing_number = account.get("routing_number")
+        account_number = account.get("account_number")
+        fractional_routing = account.get("fractional_routing")
+        micr_style = account.get("micr_style", "A")
+
     create_blank_checks(
         filename=tmp_file.name,
         checks_per_page=checks_per_page,
         page_size=page_size,
         total_checks=total_checks,
         first_check_number=first_check_number,
-        owner_name=account.get("owner_name"),
-        owner_address=account.get("owner_address"),
-        bank_name=account.get("bank_name"),
-        bank_address=account.get("bank_address"),
-        fractional_routing=account.get("fractional_routing"),
-        routing_number=account.get("routing_number"),
-        account_number=account.get("account_number"),
-        micr_style=account.get("micr_style", "A"),
+        owner_name=owner_name,
+        owner_address=owner_address,
+        bank_name=bank_name,
+        bank_address=bank_address,
+        fractional_routing=fractional_routing,
+        routing_number=routing_number,
+        account_number=account_number,
+        micr_style=micr_style,
     )
 
     return send_file(tmp_file.name, as_attachment=True, download_name="blank_checks.pdf")
