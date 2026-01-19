@@ -33,8 +33,6 @@ def ensure_fonts_available():
             f"Expected: {', '.join(str(p.name) for p in REQUIRED_FONTS.values())}"
         )
 
-ensure_fonts_available()
-
 class PDF(FPDF):
     def __init__(self, checks_per_page=3, page_size=(8.5, 11.0), orientation=None):
         if checks_per_page < 1 or checks_per_page > 3:
@@ -119,6 +117,7 @@ def add_bank_info(pdf, bank_name=None, bank_address=None, fract_routing_num=None
         add_text(pdf, x_center - width/2, y_offset, fract_routing_num)
 
 def add_check_titles(pdf, position=1):
+    ensure_fonts_available()
     position = position - 1
     y_offset = 3.5 * position
     pdf.add_font('AvenirBook', '', str(REQUIRED_FONTS["AvenirBook"]), uni=True)
@@ -200,6 +199,7 @@ def add_check_info(pdf, payee=None, amount=None, date=None, memo=None, position=
         add_text(pdf, *amount_words_coords, txt=amount_in_words_with_asterisks)
 
 def add_micr_line(pdf, check_number, routing_number, account_number, style="A", position=1):
+    ensure_fonts_available()
     pdf.add_font('MICR', '', str(REQUIRED_FONTS["MICR"]), uni=True)
     pdf.set_font("MICR", size=10.089686098654708)
     print(pdf.w)
