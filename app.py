@@ -84,6 +84,10 @@ def _boto3_available() -> bool:
     return importlib.util.find_spec("boto3") is not None
 
 
+def _psycopg2_available() -> bool:
+    return importlib.util.find_spec("psycopg2") is not None
+
+
 def _sso_backend_requires_keyring() -> bool:
     backend = os.getenv("SSO_CACHE_BACKEND", "auto").strip().lower()
     return backend == "keyring"
@@ -428,6 +432,8 @@ def list_dsql_accounts():
         return jsonify({"error": str(exc)}), 400
     if not _boto3_available():
         return jsonify({"error": "boto3 is not available."}), 400
+    if not _psycopg2_available():
+        return jsonify({"error": "psycopg2 is not available."}), 400
     if _sso_backend_requires_keyring() and not _keyring_available():
         return jsonify({"error": "Keyring is not available. Set SSO_CACHE_BACKEND=file."}), 400
     start_url = _resolve_start_url(settings, cfg)
@@ -453,6 +459,8 @@ def update_dsql_next_check(account_id: str):
         return jsonify({"error": str(exc)}), 400
     if not _boto3_available():
         return jsonify({"error": "boto3 is not available."}), 400
+    if not _psycopg2_available():
+        return jsonify({"error": "psycopg2 is not available."}), 400
     if _sso_backend_requires_keyring() and not _keyring_available():
         return jsonify({"error": "Keyring is not available. Set SSO_CACHE_BACKEND=file."}), 400
     start_url = _resolve_start_url(settings, cfg)
@@ -537,6 +545,8 @@ def generate_blank():
             return jsonify({"error": str(exc)}), 400
         if not _boto3_available():
             return jsonify({"error": "boto3 is not available."}), 400
+        if not _psycopg2_available():
+            return jsonify({"error": "psycopg2 is not available."}), 400
         if _sso_backend_requires_keyring() and not _keyring_available():
             return jsonify({"error": "Keyring is not available. Set SSO_CACHE_BACKEND=file."}), 400
         start_url = _resolve_start_url(settings, cfg)
