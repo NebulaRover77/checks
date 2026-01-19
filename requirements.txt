@@ -1,5 +1,5 @@
 flask==3.0.0
 fpdf==1.7.2
-inflect==7.0.0
-boto3==1.35.90
-psycopg2-binary==2.9.9
+inflect==7.5.0
+boto3==1.40.16
+psycopg2-binary==2.9.10
