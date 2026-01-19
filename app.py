@@ -39,20 +39,34 @@ DSQL_ACCOUNT_FIELDS = (
 )
 
 
-def _ensure_start_url(settings: dict) -> None:
-    start_url = settings.get("global", {}).get("sso_url")
-    if not start_url:
-        return
+def _sync_global_settings(settings: dict) -> None:
+    global_settings = settings.get("global", {})
+    mapping = {
+        "START_URL": "sso_url",
+        "SSO_REGION": "sso_region",
+        "ACCOUNT_ID": "account_id",
+        "ROLE_NAME": "role_name",
+        "AWS_REGION": "aws_region",
+        "DB_NAME": "db_name",
+        "DB_USER": "db_user",
+        "TAG_KEY": "tag_key",
+        "TAG_VALUE": "tag_value",
+    }
     cfg = configurations.load_cfg()
-    if not cfg.get("START_URL"):
-        cfg["START_URL"] = start_url
+    changed = False
+    for cfg_key, setting_key in mapping.items():
+        value = (global_settings.get(setting_key) or "").strip()
+        if value and cfg.get(cfg_key) != value:
+            cfg[cfg_key] = value
+            changed = True
+    if changed:
         configurations.save_cfg(cfg)
 
 
 def _dsql_required_settings(settings: dict) -> dict:
     import common_dsql
 
-    _ensure_start_url(settings)
+    _sync_global_settings(settings)
     return common_dsql.get_settings(
         ("START_URL", "SSO_REGION", "ACCOUNT_ID", "ROLE_NAME", "AWS_REGION", "DB_NAME", "DB_USER")
     )
@@ -304,10 +318,32 @@ def save_global_settings():
     sso_url = (payload.get("sso_url") or "").strip()
     if sso_url and not sso_url.startswith(("http://", "https://")):
         return jsonify({"error": "SSO URL must start with http:// or https://"}), 400
+    sso_region = (payload.get("sso_region") or "").strip()
+    account_id = (payload.get("account_id") or "").strip()
+    role_name = (payload.get("role_name") or "").strip()
+    aws_region = (payload.get("aws_region") or "").strip()
+    db_name = (payload.get("db_name") or "").strip()
+    db_user = (payload.get("db_user") or "").strip()
+    tag_key = (payload.get("tag_key") or "").strip()
+    tag_value = (payload.get("tag_value") or "").strip()
+    if sso_region and not re.fullmatch(r"[a-z0-9-]+", sso_region):
+        return jsonify({"error": "SSO region must look like us-west-2."}), 400
+    if aws_region and not re.fullmatch(r"[a-z0-9-]+", aws_region):
+        return jsonify({"error": "AWS region must look like us-west-2."}), 400
+    if account_id and not re.fullmatch(r"\\d{12}", account_id):
+        return jsonify({"error": "Account ID must be a 12-digit number."}), 400
     settings = load_settings()
     settings["global"]["sso_url"] = sso_url
+    settings["global"]["sso_region"] = sso_region
+    settings["global"]["account_id"] = account_id
+    settings["global"]["role_name"] = role_name
+    settings["global"]["aws_region"] = aws_region
+    settings["global"]["db_name"] = db_name
+    settings["global"]["db_user"] = db_user
+    settings["global"]["tag_key"] = tag_key
+    settings["global"]["tag_value"] = tag_value
     save_settings(settings)
-    _ensure_start_url(settings)
+    _sync_global_settings(settings)
     return jsonify({"status": "saved", "settings": settings["global"]})
 
 

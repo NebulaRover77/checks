@@ -30,6 +30,38 @@
                 placeholder="https://example.awsapps.com/start/"
               />
             </label>
+            <label>
+              SSO region
+              <input type="text" id="sso-region" placeholder="us-west-2" />
+            </label>
+            <label>
+              Account ID
+              <input type="text" id="account-id" placeholder="123456789012" />
+            </label>
+            <label>
+              Role name
+              <input type="text" id="role-name" placeholder="MyRole" />
+            </label>
+            <label>
+              AWS region
+              <input type="text" id="aws-region" placeholder="us-west-2" />
+            </label>
+            <label>
+              DB name
+              <input type="text" id="db-name" placeholder="postgres" />
+            </label>
+            <label>
+              DB user
+              <input type="text" id="db-user" placeholder="dbuser" />
+            </label>
+            <label>
+              Tag key
+              <input type="text" id="tag-key" placeholder="environment" />
+            </label>
+            <label>
+              Tag value
+              <input type="text" id="tag-value" placeholder="production" />
+            </label>
             <button class="button primary" type="submit">Save settings</button>
             <p class="status" id="settings-status" role="status" aria-live="polite"></p>
             <button class="button ghost" type="button" id="sso-login">
