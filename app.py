@@ -26,19 +26,20 @@ SETTINGS_NAME_RE = re.compile(r"^[A-Za-z0-9_-]{1,50}$")
 
 def load_settings() -> dict:
     if not SETTINGS_FILE.exists():
-        return {"presets": {}, "accounts": {}}
+        return {"presets": {}, "accounts": {}, "global": {}}
     try:
         data = json.loads(SETTINGS_FILE.read_text())
     except json.JSONDecodeError:
-        return {"presets": {}, "accounts": {}}
-    if isinstance(data, dict) and ("presets" in data or "accounts" in data):
+        return {"presets": {}, "accounts": {}, "global": {}}
+    if isinstance(data, dict) and ("presets" in data or "accounts" in data or "global" in data):
         return {
             "presets": dict(data.get("presets", {})),
             "accounts": dict(data.get("accounts", {})),
+            "global": dict(data.get("global", {})),
         }
     if isinstance(data, dict):
-        return {"presets": dict(data), "accounts": {}}
-    return {"presets": {}, "accounts": {}}
+        return {"presets": dict(data), "accounts": {}, "global": {}}
+    return {"presets": {}, "accounts": {}, "global": {}}
 
 
 def save_settings(settings: dict) -> None:
@@ -47,6 +48,7 @@ def save_settings(settings: dict) -> None:
     payload = {
         "presets": settings.get("presets", {}),
         "accounts": settings.get("accounts", {}),
+        "global": settings.get("global", {}),
     }
     temp_file.write_text(json.dumps(payload, indent=2, sort_keys=True))
     temp_file.replace(SETTINGS_FILE)
@@ -147,6 +149,24 @@ def update_last_check(name: str):
     return jsonify({"status": "updated", "name": name, "last_check_number": last_check})
 
 
+@app.get("/api/global-settings")
+def get_global_settings():
+    settings = load_settings()
+    return jsonify({"settings": settings["global"]})
+
+
+@app.post("/api/global-settings")
+def save_global_settings():
+    payload = request.get_json(silent=True) or {}
+    sso_url = (payload.get("sso_url") or "").strip()
+    if sso_url and not sso_url.startswith(("http://", "https://")):
+        return jsonify({"error": "SSO URL must start with http:// or https://"}), 400
+    settings = load_settings()
+    settings["global"]["sso_url"] = sso_url
+    save_settings(settings)
+    return jsonify({"status": "saved", "settings": settings["global"]})
+
+
 @app.get("/")
 def index():
     return redirect("/generate_check.html")
@@ -155,6 +175,20 @@ def index():
 @app.get("/blank")
 def blank():
     return redirect("/blank_checks.html")
+
+
+@app.get("/settings")
+def settings_page():
+    return redirect("/settings.html")
+
+
+@app.get("/login")
+def login():
+    settings = load_settings()
+    sso_url = settings["global"].get("sso_url")
+    if not sso_url:
+        return jsonify({"error": "SSO URL is not configured."}), 400
+    return redirect(sso_url)
 
 
 @app.post("/generate")
