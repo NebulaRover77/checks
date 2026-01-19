@@ -5,12 +5,13 @@ import json
 import os
 import re
 import tempfile
+import zipfile
 from pathlib import Path
 from typing import Tuple
 
 from flask import Flask, after_this_request, jsonify, redirect, request, send_file
 
-from utilities import create_blank_checks, create_check
+from utilities import create_blank_check_pair, create_check
 import configurations
 
 app = Flask(__name__, static_folder="site", static_url_path="")
@@ -524,13 +525,21 @@ def generate():
     checks_per_page = parse_int(form.get("checks_per_page", "1"), 1)
     position = parse_int(form.get("position", "1"), 1)
 
-    tmp_file = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
-    tmp_file.close()
+    micr_file = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+    micr_file.close()
+    nomicr_file = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+    nomicr_file.close()
+    zip_file = tempfile.NamedTemporaryFile(suffix=".zip", delete=False)
+    zip_file.close()
 
     @after_this_request
     def cleanup(response):
         try:
-            os.remove(tmp_file.name)
+            for filename in (micr_file.name, nomicr_file.name, zip_file.name):
+                try:
+                    os.remove(filename)
+                except FileNotFoundError:
+                    pass
         except FileNotFoundError:
             pass
         return response
@@ -589,15 +598,20 @@ def generate_blank():
     checks_per_page = parse_int(form.get("checks_per_page", "1"), 1)
     checks_per_page = max(1, min(checks_per_page, 3))
 
-    tmp_file = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
-    tmp_file.close()
+    micr_file = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+    micr_file.close()
+    nomicr_file = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+    nomicr_file.close()
+    zip_file = tempfile.NamedTemporaryFile(suffix=".zip", delete=False)
+    zip_file.close()
 
     @after_this_request
     def cleanup(response):
-        try:
-            os.remove(tmp_file.name)
-        except FileNotFoundError:
-            pass
+        for filename in (micr_file.name, nomicr_file.name, zip_file.name):
+            try:
+                os.remove(filename)
+            except FileNotFoundError:
+                pass
         return response
 
     if account_source == "dsql":
@@ -625,8 +639,11 @@ def generate_blank():
         fractional_routing = account.get("fractional_routing")
         micr_style = account.get("micr_style", "A")
 
-    create_blank_checks(
-        filename=tmp_file.name,
+    micr_style = "B"
+
+    create_blank_check_pair(
+        micr_filename=micr_file.name,
+        nomicr_filename=nomicr_file.name,
         checks_per_page=checks_per_page,
         page_size=page_size,
         total_checks=total_checks,
@@ -641,7 +658,11 @@ def generate_blank():
         micr_style=micr_style,
     )
 
-    return send_file(tmp_file.name, as_attachment=True, download_name="blank_checks.pdf")
+    with zipfile.ZipFile(zip_file.name, "w") as archive:
+        archive.write(micr_file.name, arcname="micr.pdf")
+        archive.write(nomicr_file.name, arcname="nomicr.pdf")
+
+    return send_file(zip_file.name, as_attachment=True, download_name="check_pdfs.zip")
 
 
 if __name__ == "__main__":

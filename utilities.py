@@ -323,3 +323,51 @@ def create_blank_checks(
                 position=position,
             )
     pdf.output(filename)
+
+
+def create_blank_check_pair(
+    *,
+    micr_filename: str,
+    nomicr_filename: str,
+    checks_per_page: int,
+    page_size: tuple[float, float],
+    total_checks: int,
+    first_check_number: int,
+    owner_name: str | None = None,
+    owner_address: str | None = None,
+    bank_name: str | None = None,
+    bank_address: str | None = None,
+    fractional_routing: str | None = None,
+    routing_number: str | None = None,
+    account_number: str | None = None,
+    micr_style: str = "B",
+) -> None:
+    pdf_micr = PDF(checks_per_page=checks_per_page, page_size=page_size)
+    pdf_nomicr = PDF(checks_per_page=checks_per_page, page_size=page_size)
+    for idx in range(total_checks):
+        if idx and idx % checks_per_page == 0:
+            pdf_micr.add_page()
+            pdf_nomicr.add_page()
+        position = (idx % checks_per_page) + 1
+        check_number = first_check_number + idx
+        add_check_number(pdf_micr, check_number, position=position)
+        if routing_number and account_number:
+            add_micr_line_safe(
+                pdf_micr,
+                check_number=check_number,
+                routing_number=routing_number,
+                account_number=account_number,
+                style=micr_style,
+                position=position,
+            )
+        add_check_titles_safe(pdf_nomicr, position=position)
+        add_owner_info(pdf_nomicr, owner_name=owner_name, owner_address=owner_address, position=position)
+        add_bank_info(
+            pdf_nomicr,
+            bank_name=bank_name,
+            bank_address=bank_address,
+            fract_routing_num=fractional_routing,
+            position=position,
+        )
+    pdf_micr.output(micr_filename)
+    pdf_nomicr.output(nomicr_filename)
