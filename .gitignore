@@ -1,3 +1,4 @@
+__pycache__/
 fonts/*
 *.pdf
 !site/sample-check.pdf
