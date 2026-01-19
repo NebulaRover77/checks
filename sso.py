@@ -1,9 +1,13 @@
 # sso.py
+import importlib.util
 import json, os, time, webbrowser
 from urllib.parse import quote_plus
 import keyring
 import keyring.errors as ke
-import boto3
+if importlib.util.find_spec("boto3") is None:
+    boto3 = None
+else:
+    import boto3
 from botocore.session import get_session
 from botocore.credentials import Credentials
 
@@ -50,6 +54,14 @@ def _ensure_client(oidc, cache, cache_key, force: bool = False):
 def _dbg(*a):
     if os.getenv("SSO_DEBUG"):
         print("[SSO]", *a)
+
+
+def _require_boto3():
+    if boto3 is None:
+        raise RuntimeError(
+            "boto3 is required for SSO login. Install it with 'pip install boto3' "
+            "or add it to your environment."
+        )
 
 
 def _norm_start_url(u: str) -> str:
@@ -162,6 +174,7 @@ def sso_login_and_get_session(
       2) Else, try refresh_token grant if we have a refreshToken
       3) Else, do device flow (auto-opens browser by default)
     """
+    _require_boto3()
     start_url = _norm_start_url(start_url)
     oidc = boto3.client("sso-oidc", region_name=sso_region)
     sso = boto3.client("sso", region_name=sso_region)
