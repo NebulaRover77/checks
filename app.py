@@ -11,6 +11,7 @@ from typing import Tuple
 from flask import Flask, after_this_request, jsonify, redirect, request, send_file
 
 from utilities import create_blank_checks, create_check
+import configurations
 
 app = Flask(__name__, static_folder="site", static_url_path="")
 
@@ -38,9 +39,20 @@ DSQL_ACCOUNT_FIELDS = (
 )
 
 
-def _dsql_required_settings() -> dict:
+def _ensure_start_url(settings: dict) -> None:
+    start_url = settings.get("global", {}).get("sso_url")
+    if not start_url:
+        return
+    cfg = configurations.load_cfg()
+    if not cfg.get("START_URL"):
+        cfg["START_URL"] = start_url
+        configurations.save_cfg(cfg)
+
+
+def _dsql_required_settings(settings: dict) -> dict:
     import common_dsql
 
+    _ensure_start_url(settings)
     return common_dsql.get_settings(
         ("START_URL", "SSO_REGION", "ACCOUNT_ID", "ROLE_NAME", "AWS_REGION", "DB_NAME", "DB_USER")
     )
@@ -295,6 +307,7 @@ def save_global_settings():
     settings = load_settings()
     settings["global"]["sso_url"] = sso_url
     save_settings(settings)
+    _ensure_start_url(settings)
     return jsonify({"status": "saved", "settings": settings["global"]})
 
 
@@ -302,7 +315,7 @@ def save_global_settings():
 def sso_status():
     settings = load_settings()
     try:
-        cfg = _dsql_required_settings()
+        cfg = _dsql_required_settings(settings)
     except RuntimeError as exc:
         return jsonify({"authenticated": False, "error": str(exc)}), 400
     if not _boto3_available():
@@ -318,7 +331,7 @@ def sso_status():
 def sso_device_start():
     settings = load_settings()
     try:
-        cfg = _dsql_required_settings()
+        cfg = _dsql_required_settings(settings)
     except RuntimeError as exc:
         return jsonify({"error": str(exc)}), 400
     if not _boto3_available():
@@ -345,7 +358,7 @@ def sso_device_poll():
         return jsonify({"error": "Missing device_code."}), 400
     settings = load_settings()
     try:
-        cfg = _dsql_required_settings()
+        cfg = _dsql_required_settings(settings)
     except RuntimeError as exc:
         return jsonify({"error": str(exc)}), 400
     if not _boto3_available():
@@ -373,7 +386,7 @@ def sso_device_poll():
 def list_dsql_accounts():
     settings = load_settings()
     try:
-        cfg = _dsql_required_settings()
+        cfg = _dsql_required_settings(settings)
     except RuntimeError as exc:
         return jsonify({"error": str(exc)}), 400
     if not _boto3_available():
@@ -398,7 +411,7 @@ def update_dsql_next_check(account_id: str):
         return jsonify({"error": "Next check number must be positive."}), 400
     settings = load_settings()
     try:
-        cfg = _dsql_required_settings()
+        cfg = _dsql_required_settings(settings)
     except RuntimeError as exc:
         return jsonify({"error": str(exc)}), 400
     if not _boto3_available():
@@ -482,7 +495,7 @@ def generate_blank():
     account = None
     if account_source == "dsql":
         try:
-            cfg = _dsql_required_settings()
+            cfg = _dsql_required_settings(settings)
         except RuntimeError as exc:
             return jsonify({"error": str(exc)}), 400
         if not _boto3_available():
