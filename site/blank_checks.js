@@ -221,7 +221,7 @@ form.addEventListener("submit", async (event) => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = "blank_checks.pdf";
+    link.download = "check_pdfs.zip";
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -236,7 +236,7 @@ form.addEventListener("submit", async (event) => {
         1,
     };
     printResult.hidden = false;
-    setStatus(printStatus, "PDF generated. Confirm whether the print succeeded.");
+    setStatus(printStatus, "PDFs generated (micr/nomicr). Confirm whether the print succeeded.");
   } catch (error) {
     printResult.hidden = false;
     setStatus(printStatus, error.message || "Unable to generate blank checks.", true);

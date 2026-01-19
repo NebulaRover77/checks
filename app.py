@@ -5,15 +5,19 @@ import json
 import os
 import re
 import tempfile
+import zipfile
 from pathlib import Path
 from typing import Tuple
 
 from flask import Flask, after_this_request, jsonify, redirect, request, send_file
 
-from utilities import create_blank_checks, create_check
+from utilities import create_blank_check_pair, create_check
 import configurations
 
 app = Flask(__name__, static_folder="site", static_url_path="")
+
+os.environ.setdefault("SSO_CACHE_BACKEND", "file")
+os.environ.setdefault("DSQL_CACHE_BACKEND", "file")
 
 PAGE_SIZES = {
     "single": (8.5, 4.0),
@@ -84,9 +88,24 @@ def _boto3_available() -> bool:
     return importlib.util.find_spec("boto3") is not None
 
 
+def _psycopg2_available() -> bool:
+    return importlib.util.find_spec("psycopg2") is not None
+
+
+def _dsql_service_available(region: str) -> bool:
+    try:
+        import boto3
+        from botocore.exceptions import UnknownServiceError
+
+        boto3.session.Session().client("dsql", region_name=region)
+        return True
+    except UnknownServiceError:
+        return False
+
+
 def _sso_backend_requires_keyring() -> bool:
     backend = os.getenv("SSO_CACHE_BACKEND", "auto").strip().lower()
-    return backend in {"auto", "keyring"}
+    return backend == "keyring"
 
 
 def _dsql_is_authenticated(start_url: str, cfg: dict) -> bool:
@@ -428,6 +447,10 @@ def list_dsql_accounts():
         return jsonify({"error": str(exc)}), 400
     if not _boto3_available():
         return jsonify({"error": "boto3 is not available."}), 400
+    if not _dsql_service_available(cfg["AWS_REGION"]):
+        return jsonify({"error": "boto3 does not support the DSQL service."}), 400
+    if not _psycopg2_available():
+        return jsonify({"error": "psycopg2 is not available."}), 400
     if _sso_backend_requires_keyring() and not _keyring_available():
         return jsonify({"error": "Keyring is not available. Set SSO_CACHE_BACKEND=file."}), 400
     start_url = _resolve_start_url(settings, cfg)
@@ -453,6 +476,10 @@ def update_dsql_next_check(account_id: str):
         return jsonify({"error": str(exc)}), 400
     if not _boto3_available():
         return jsonify({"error": "boto3 is not available."}), 400
+    if not _dsql_service_available(cfg["AWS_REGION"]):
+        return jsonify({"error": "boto3 does not support the DSQL service."}), 400
+    if not _psycopg2_available():
+        return jsonify({"error": "psycopg2 is not available."}), 400
     if _sso_backend_requires_keyring() and not _keyring_available():
         return jsonify({"error": "Keyring is not available. Set SSO_CACHE_BACKEND=file."}), 400
     start_url = _resolve_start_url(settings, cfg)
@@ -498,13 +525,21 @@ def generate():
     checks_per_page = parse_int(form.get("checks_per_page", "1"), 1)
     position = parse_int(form.get("position", "1"), 1)
 
-    tmp_file = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
-    tmp_file.close()
+    micr_file = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+    micr_file.close()
+    nomicr_file = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+    nomicr_file.close()
+    zip_file = tempfile.NamedTemporaryFile(suffix=".zip", delete=False)
+    zip_file.close()
 
     @after_this_request
     def cleanup(response):
         try:
-            os.remove(tmp_file.name)
+            for filename in (micr_file.name, nomicr_file.name, zip_file.name):
+                try:
+                    os.remove(filename)
+                except FileNotFoundError:
+                    pass
         except FileNotFoundError:
             pass
         return response
@@ -537,6 +572,10 @@ def generate_blank():
             return jsonify({"error": str(exc)}), 400
         if not _boto3_available():
             return jsonify({"error": "boto3 is not available."}), 400
+        if not _dsql_service_available(cfg["AWS_REGION"]):
+            return jsonify({"error": "boto3 does not support the DSQL service."}), 400
+        if not _psycopg2_available():
+            return jsonify({"error": "psycopg2 is not available."}), 400
         if _sso_backend_requires_keyring() and not _keyring_available():
             return jsonify({"error": "Keyring is not available. Set SSO_CACHE_BACKEND=file."}), 400
         start_url = _resolve_start_url(settings, cfg)
@@ -559,15 +598,20 @@ def generate_blank():
     checks_per_page = parse_int(form.get("checks_per_page", "1"), 1)
     checks_per_page = max(1, min(checks_per_page, 3))
 
-    tmp_file = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
-    tmp_file.close()
+    micr_file = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+    micr_file.close()
+    nomicr_file = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+    nomicr_file.close()
+    zip_file = tempfile.NamedTemporaryFile(suffix=".zip", delete=False)
+    zip_file.close()
 
     @after_this_request
     def cleanup(response):
-        try:
-            os.remove(tmp_file.name)
-        except FileNotFoundError:
-            pass
+        for filename in (micr_file.name, nomicr_file.name, zip_file.name):
+            try:
+                os.remove(filename)
+            except FileNotFoundError:
+                pass
         return response
 
     if account_source == "dsql":
@@ -595,8 +639,11 @@ def generate_blank():
         fractional_routing = account.get("fractional_routing")
         micr_style = account.get("micr_style", "A")
 
-    create_blank_checks(
-        filename=tmp_file.name,
+    micr_style = "B"
+
+    create_blank_check_pair(
+        micr_filename=micr_file.name,
+        nomicr_filename=nomicr_file.name,
         checks_per_page=checks_per_page,
         page_size=page_size,
         total_checks=total_checks,
@@ -611,7 +658,11 @@ def generate_blank():
         micr_style=micr_style,
     )
 
-    return send_file(tmp_file.name, as_attachment=True, download_name="blank_checks.pdf")
+    with zipfile.ZipFile(zip_file.name, "w") as archive:
+        archive.write(micr_file.name, arcname="micr.pdf")
+        archive.write(nomicr_file.name, arcname="nomicr.pdf")
+
+    return send_file(zip_file.name, as_attachment=True, download_name="check_pdfs.zip")
 
 
 if __name__ == "__main__":
