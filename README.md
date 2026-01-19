@@ -11,8 +11,7 @@ docker build -t checkcraft .
 docker run --rm -p 8080:8080 checkcraft
 ```
 
-Then visit `http://localhost:8080` for the generator or
-`http://localhost:8080/preview.html` for the marketing preview.
+Then visit `http://localhost:8080`.
 
 > Note: If you want to use MICR or Avenir fonts, add `fonts/AvenirBook.ttf` and
 > `fonts/MICR.ttf` under the project root. The default CLI and web flow work
