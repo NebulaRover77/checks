@@ -90,6 +90,17 @@ def _psycopg2_available() -> bool:
     return importlib.util.find_spec("psycopg2") is not None
 
 
+def _dsql_service_available() -> bool:
+    try:
+        import boto3
+        from botocore.exceptions import UnknownServiceError
+
+        boto3.session.Session().client("dsql")
+        return True
+    except UnknownServiceError:
+        return False
+
+
 def _sso_backend_requires_keyring() -> bool:
     backend = os.getenv("SSO_CACHE_BACKEND", "auto").strip().lower()
     return backend == "keyring"
@@ -434,6 +445,8 @@ def list_dsql_accounts():
         return jsonify({"error": str(exc)}), 400
     if not _boto3_available():
         return jsonify({"error": "boto3 is not available."}), 400
+    if not _dsql_service_available():
+        return jsonify({"error": "boto3 does not support the DSQL service."}), 400
     if not _psycopg2_available():
         return jsonify({"error": "psycopg2 is not available."}), 400
     if _sso_backend_requires_keyring() and not _keyring_available():
@@ -461,6 +474,8 @@ def update_dsql_next_check(account_id: str):
         return jsonify({"error": str(exc)}), 400
     if not _boto3_available():
         return jsonify({"error": "boto3 is not available."}), 400
+    if not _dsql_service_available():
+        return jsonify({"error": "boto3 does not support the DSQL service."}), 400
     if not _psycopg2_available():
         return jsonify({"error": "psycopg2 is not available."}), 400
     if _sso_backend_requires_keyring() and not _keyring_available():
@@ -547,6 +562,8 @@ def generate_blank():
             return jsonify({"error": str(exc)}), 400
         if not _boto3_available():
             return jsonify({"error": "boto3 is not available."}), 400
+        if not _dsql_service_available():
+            return jsonify({"error": "boto3 does not support the DSQL service."}), 400
         if not _psycopg2_available():
             return jsonify({"error": "psycopg2 is not available."}), 400
         if _sso_backend_requires_keyring() and not _keyring_available():
