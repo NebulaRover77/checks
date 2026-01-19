@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CheckCraft — Global settings</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <header id="top-nav"></header>
+    <main>
+      <section class="section preview">
+        <div class="section-header">
+          <h2>Global settings</h2>
+          <p>Manage shared settings like the SSO URL for the whole app.</p>
+        </div>
+        <div class="preview-grid">
+          <form class="card form" id="settings-form">
+            <label>
+              SSO start URL
+              <input
+                type="url"
+                id="sso-url"
+                placeholder="https://example.awsapps.com/start/"
+              />
+            </label>
+            <button class="button primary" type="submit">Save settings</button>
+            <p class="status" id="settings-status" role="status" aria-live="polite"></p>
+            <button class="button ghost" type="button" id="sso-login">
+              Log in with SSO
+            </button>
+          </form>
+
+          <div class="card check-preview">
+            <h3>Quick links</h3>
+            <ul class="tips">
+              <li><a href="/generate_check.html">Print on checks</a></li>
+              <li><a href="/blank_checks.html">Print blank checks</a></li>
+            </ul>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="nav.js"></script>
+    <script src="settings.js"></script>
+  </body>
+</html>
