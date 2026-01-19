@@ -319,7 +319,8 @@ def save_global_settings():
     if sso_url and not sso_url.startswith(("http://", "https://")):
         return jsonify({"error": "SSO URL must start with http:// or https://"}), 400
     sso_region = (payload.get("sso_region") or "").strip()
-    account_id = (payload.get("account_id") or "").strip()
+    account_id_raw = (payload.get("account_id") or "").strip()
+    account_id = re.sub(r"[^0-9]", "", account_id_raw)
     role_name = (payload.get("role_name") or "").strip()
     aws_region = (payload.get("aws_region") or "").strip()
     db_name = (payload.get("db_name") or "").strip()
