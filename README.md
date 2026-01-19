@@ -19,6 +19,12 @@ To persist saved presets, mount a dedicated volume for settings:
 docker run --rm -p 8080:8080 -v checkcraft_settings:/data -e SETTINGS_DIR=/data checkcraft
 ```
 
+## Blank check runs
+
+Open `http://localhost:8080/blank_checks.html` to print blank checks. Save an account profile,
+enter the first check number and total checks, then confirm whether the print was successful
+to advance the stored check number.
+
 > Note: If you want to use MICR or Avenir fonts, add `fonts/AvenirBook.ttf` and
 > `fonts/MICR.ttf` under the project root. The default CLI and web flow work
 > without them, but advanced templates rely on those files.

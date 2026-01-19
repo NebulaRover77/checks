@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CheckCraft — Print blank checks</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <main>
+      <section class="section preview">
+        <div class="section-header">
+          <h2>Print blank checks</h2>
+          <p>Generate pre-numbered blank checks, then confirm whether the print succeeded.</p>
+        </div>
+        <div class="preview-grid">
+          <form class="card form" id="blank-form">
+            <div class="form-callout">
+              <p class="callout-title">Account selection</p>
+              <label>
+                Saved accounts
+                <select id="account-select">
+                  <option value="">Select an account</option>
+                </select>
+              </label>
+              <button class="button ghost" type="button" id="account-load">Load account</button>
+            </div>
+
+            <div class="form-callout">
+              <p class="callout-title">Account details</p>
+              <label>
+                Account name
+                <input type="text" id="account-name" placeholder="e.g., operations" />
+              </label>
+              <label>
+                Routing number
+                <input type="text" id="routing-number" placeholder="9-digit routing number" />
+              </label>
+              <label>
+                Account number
+                <input type="text" id="account-number" placeholder="Account number" />
+              </label>
+              <label>
+                MICR style
+                <select id="micr-style">
+                  <option value="A" selected>Standard (A)</option>
+                  <option value="S">Short (S)</option>
+                </select>
+              </label>
+              <label>
+                Owner name
+                <input type="text" id="owner-name" placeholder="Account owner" />
+              </label>
+              <label>
+                Owner address
+                <textarea id="owner-address" rows="3" placeholder="Owner address"></textarea>
+              </label>
+              <label>
+                Bank name
+                <input type="text" id="bank-name" placeholder="Bank name" />
+              </label>
+              <label>
+                Bank address
+                <textarea id="bank-address" rows="3" placeholder="Bank address"></textarea>
+              </label>
+              <label>
+                Fractional routing
+                <input type="text" id="fractional-routing" placeholder="Optional fractional routing" />
+              </label>
+              <label>
+                Last check number
+                <input type="number" id="last-check-number" value="1000" min="1" />
+              </label>
+              <button class="button ghost" type="button" id="account-save">Save account</button>
+              <p class="status" id="account-status" role="status" aria-live="polite"></p>
+            </div>
+
+            <div class="form-callout">
+              <p class="callout-title">Blank check run</p>
+              <label>
+                First check number
+                <input type="number" id="first-check-number" value="1001" min="1" />
+              </label>
+              <label>
+                Total checks to print
+                <input type="number" id="total-checks" value="3" min="1" />
+              </label>
+              <label>
+                Page size
+                <select id="page-size" name="page_size">
+                  <option value="single">8.5 × 4.0 (one check)</option>
+                  <option value="double">8.5 × 7.5 (two checks)</option>
+                  <option value="triple" selected>8.5 × 11.0 (three checks)</option>
+                  <option value="custom">Custom</option>
+                </select>
+              </label>
+              <div class="custom-size" id="custom-size" hidden>
+                <label>
+                  Custom width (inches)
+                  <input type="number" id="custom-width" step="0.1" value="8.5" />
+                </label>
+                <label>
+                  Custom height (inches)
+                  <input type="number" id="custom-height" step="0.1" value="11" />
+                </label>
+              </div>
+              <label>
+                Checks per page
+                <select id="checks-per-page">
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3" selected>3</option>
+                </select>
+              </label>
+              <button class="button primary" type="submit">Generate blank checks</button>
+            </div>
+
+            <div class="form-callout" id="print-result" hidden>
+              <p class="callout-title">Confirm print result</p>
+              <p>Did the blank check run print successfully?</p>
+              <div class="action-row">
+                <button class="button primary" type="button" id="print-success">Successful</button>
+                <button class="button ghost" type="button" id="print-failure">Unsuccessful</button>
+              </div>
+              <p class="status" id="print-status" role="status" aria-live="polite"></p>
+            </div>
+          </form>
+
+          <div class="card check-preview">
+            <h3>Tips</h3>
+            <ul class="tips">
+              <li>Save account details once, then reuse for future blank runs.</li>
+              <li>Confirm success to advance the stored check number.</li>
+              <li>If the print fails, mark it unsuccessful to keep numbering unchanged.</li>
+            </ul>
+            <a class="button ghost" href="/generate_check.html">Return to print on checks</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="blank_checks.js"></script>
+  </body>
+</html>
