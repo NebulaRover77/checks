@@ -1,5 +1,13 @@
 const form = document.getElementById("settings-form");
 const ssoUrlInput = document.getElementById("sso-url");
+const ssoRegionInput = document.getElementById("sso-region");
+const accountIdInput = document.getElementById("account-id");
+const roleNameInput = document.getElementById("role-name");
+const awsRegionInput = document.getElementById("aws-region");
+const dbNameInput = document.getElementById("db-name");
+const dbUserInput = document.getElementById("db-user");
+const tagKeyInput = document.getElementById("tag-key");
+const tagValueInput = document.getElementById("tag-value");
 const statusEl = document.getElementById("settings-status");
 const loginButton = document.getElementById("sso-login");
 const deviceStartButton = document.getElementById("sso-device-start");
@@ -45,6 +53,14 @@ async function loadSettings() {
     if (!response.ok) throw new Error("Unable to load settings.");
     const payload = await response.json();
     ssoUrlInput.value = payload.settings?.sso_url || "";
+    ssoRegionInput.value = payload.settings?.sso_region || "";
+    accountIdInput.value = payload.settings?.account_id || "";
+    roleNameInput.value = payload.settings?.role_name || "";
+    awsRegionInput.value = payload.settings?.aws_region || "";
+    dbNameInput.value = payload.settings?.db_name || "";
+    dbUserInput.value = payload.settings?.db_user || "";
+    tagKeyInput.value = payload.settings?.tag_key || "";
+    tagValueInput.value = payload.settings?.tag_value || "";
   } catch (error) {
     setStatus("Unable to load settings.", true);
   }
@@ -56,7 +72,17 @@ form.addEventListener("submit", async (event) => {
     const response = await fetch("/api/global-settings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sso_url: ssoUrlInput.value.trim() }),
+      body: JSON.stringify({
+        sso_url: ssoUrlInput.value.trim(),
+        sso_region: ssoRegionInput.value.trim(),
+        account_id: accountIdInput.value.trim(),
+        role_name: roleNameInput.value.trim(),
+        aws_region: awsRegionInput.value.trim(),
+        db_name: dbNameInput.value.trim(),
+        db_user: dbUserInput.value.trim(),
+        tag_key: tagKeyInput.value.trim(),
+        tag_value: tagValueInput.value.trim(),
+      }),
     });
     const payload = await response.json();
     if (!response.ok) {
