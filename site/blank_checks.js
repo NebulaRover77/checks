@@ -73,9 +73,10 @@ function applyDsqlAccount(data) {
   fields.bankName.value = [data.bank_name_1, data.bank_name_2].filter(Boolean).join("\n");
   fields.bankAddress.value = [data.bank_address_1, data.bank_address_2].filter(Boolean).join("\n");
   fields.fractionalRouting.value = data.bank_fractional || "";
-  fields.lastCheckNumber.value = data.next_check_number || 1;
-  const nextCheck = (Number.parseInt(fields.lastCheckNumber.value, 10) || 0) + 1;
-  fields.firstCheckNumber.value = Math.max(nextCheck, 1);
+  const nextCheckNumber = Number.parseInt(data.next_check_number, 10) || 1;
+  const lastCheckNumber = Math.max(nextCheckNumber - 1, 1);
+  fields.lastCheckNumber.value = lastCheckNumber;
+  fields.firstCheckNumber.value = Math.max(nextCheckNumber, 1);
 }
 
 async function refreshAccounts() {
@@ -251,18 +252,26 @@ printSuccessButton.addEventListener("click", async () => {
         ? `/api/dsql/accounts/${encodeURIComponent(latestRun.accountName)}/next-check`
         : `/api/accounts/${encodeURIComponent(latestRun.accountName)}/last-check`;
     const payloadKey = latestRun.accountSource === "dsql" ? "next_check_number" : "last_check_number";
+    const payloadValue =
+      latestRun.accountSource === "dsql" ? latestRun.lastCheckNumber + 1 : latestRun.lastCheckNumber;
     const response = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ [payloadKey]: latestRun.lastCheckNumber }),
+      body: JSON.stringify({ [payloadKey]: payloadValue }),
     });
     const payload = await response.json();
     if (!response.ok) {
       throw new Error(payload.error || "Unable to update check number.");
     }
     const updatedValue = payload.last_check_number ?? payload.next_check_number;
-    fields.lastCheckNumber.value = updatedValue;
-    fields.firstCheckNumber.value = updatedValue + 1;
+    if (latestRun.accountSource === "dsql") {
+      const lastCheckNumber = Math.max(updatedValue - 1, 1);
+      fields.lastCheckNumber.value = lastCheckNumber;
+      fields.firstCheckNumber.value = Math.max(updatedValue, 1);
+    } else {
+      fields.lastCheckNumber.value = updatedValue;
+      fields.firstCheckNumber.value = updatedValue + 1;
+    }
     setStatus(printStatus, "Marked successful. Account numbering updated.");
   } catch (error) {
     setStatus(printStatus, error.message || "Unable to update check number.", true);
