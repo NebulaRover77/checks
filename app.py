@@ -633,22 +633,25 @@ def generate_blank():
 
     micr_style = "B"
 
-    create_blank_check_pair(
-        micr_filename=micr_file.name,
-        nomicr_filename=nomicr_file.name,
-        checks_per_page=checks_per_page,
-        page_size=page_size,
-        total_checks=total_checks,
-        first_check_number=first_check_number,
-        owner_name=owner_name,
-        owner_address=owner_address,
-        bank_name=bank_name,
-        bank_address=bank_address,
-        fractional_routing=fractional_routing,
-        routing_number=routing_number,
-        account_number=account_number,
-        micr_style=micr_style,
-    )
+    try:
+        create_blank_check_pair(
+            micr_filename=micr_file.name,
+            nomicr_filename=nomicr_file.name,
+            checks_per_page=checks_per_page,
+            page_size=page_size,
+            total_checks=total_checks,
+            first_check_number=first_check_number,
+            owner_name=owner_name,
+            owner_address=owner_address,
+            bank_name=bank_name,
+            bank_address=bank_address,
+            fractional_routing=fractional_routing,
+            routing_number=routing_number,
+            account_number=account_number,
+            micr_style=micr_style,
+        )
+    except RuntimeError as exc:
+        return jsonify({"error": f"Unable to generate check PDFs: {exc}"}), 500
 
     with zipfile.ZipFile(zip_file.name, "w") as archive:
         archive.write(micr_file.name, arcname="micr.pdf")

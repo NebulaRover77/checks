@@ -19,13 +19,15 @@ REQUIRED_FONTS = {
     "MICR": FONT_DIR / "MICR.ttf",
 }
 
-def ensure_fonts_available():
+def ensure_fonts_available(required=None):
     if not FONT_DIR.exists():
         raise RuntimeError(
             f"Missing fonts directory: {FONT_DIR}\n"
             f"Copy your font files here (AvenirBook.ttf, MICR.ttf)."
         )
-    missing = [name for name, p in REQUIRED_FONTS.items() if not p.exists()]
+    if required is None:
+        required = list(REQUIRED_FONTS.keys())
+    missing = [name for name in required if not REQUIRED_FONTS[name].exists()]
     if missing:
         missing_list = ", ".join(missing)
         raise RuntimeError(
@@ -117,7 +119,7 @@ def add_bank_info(pdf, bank_name=None, bank_address=None, fract_routing_num=None
         add_text(pdf, x_center - width/2, y_offset, fract_routing_num)
 
 def add_check_titles(pdf, position=1):
-    ensure_fonts_available()
+    ensure_fonts_available(["AvenirBook"])
     position = position - 1
     y_offset = 3.5 * position
     pdf.add_font('AvenirBook', '', str(REQUIRED_FONTS["AvenirBook"]), uni=True)
@@ -199,7 +201,7 @@ def add_check_info(pdf, payee=None, amount=None, date=None, memo=None, position=
         add_text(pdf, *amount_words_coords, txt=amount_in_words_with_asterisks)
 
 def add_micr_line(pdf, check_number, routing_number, account_number, style="A", position=1):
-    ensure_fonts_available()
+    ensure_fonts_available(["MICR"])
     pdf.add_font('MICR', '', str(REQUIRED_FONTS["MICR"]), uni=True)
     pdf.set_font("MICR", size=10.089686098654708)
     print(pdf.w)
@@ -263,8 +265,8 @@ def create_check(payee, amount, date, memo, position=1, filename="check.pdf",
 def add_check_titles_safe(pdf, position=1):
     try:
         add_check_titles(pdf, position=position)
-    except RuntimeError:
-        pass
+    except RuntimeError as exc:
+        raise RuntimeError(f"Unable to render check titles: {exc}") from exc
 
 
 def add_micr_line_safe(pdf, check_number, routing_number, account_number, style="A", position=1):
@@ -277,8 +279,8 @@ def add_micr_line_safe(pdf, check_number, routing_number, account_number, style=
             style=style,
             position=position,
         )
-    except RuntimeError:
-        pass
+    except RuntimeError as exc:
+        raise RuntimeError(f"Unable to render MICR line: {exc}") from exc
 
 
 def create_blank_checks(
