@@ -247,6 +247,12 @@ a {
   color: #b91c1c;
 }
 
+.preset-status.error a,
+.status.error a {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
 .form-callout {
   border: 1px solid var(--border);
   border-radius: 16px;
