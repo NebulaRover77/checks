@@ -4,20 +4,18 @@ This repo includes a lightweight web experience that showcases the check PDF gen
 and provides an interactive preview of check details, plus a backend endpoint that
 generates the same PDF output as the CLI.
 
-## Run with Docker
+## Run with Docker Compose
+
+Use the provided `docker-compose.yml` to build and start the web app:
 
 ```bash
-docker build -t checkcraft .
-docker run --rm -p 8080:8080 checkcraft
+docker compose up --build
 ```
 
-Then visit `http://localhost:8080`.
+Then visit `http://localhost:8888`.
 
-To persist saved presets, mount a dedicated volume for settings:
-
-```bash
-docker run --rm -p 8080:8080 -v checkcraft_settings:/data -e SETTINGS_DIR=/data checkcraft
-```
+Docker Compose already mounts a dedicated volume for settings at `/data`, so presets
+and global settings are persisted between runs.
 
 ## Blank check runs
 

@@ -18,10 +18,18 @@ const presetNameInput = document.getElementById("preset-name");
 const presetSaveButton = document.getElementById("preset-save");
 const presetStatus = document.getElementById("preset-status");
 
+function formatDate(value = new Date()) {
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${month}/${day}/${value.getFullYear()}`;
+}
+
+const todayDate = formatDate();
+
 const defaults = {
   payee: "",
   amount: "0.00",
-  date: "01/19/2024",
+  date: todayDate,
   memo: "",
   page_size: "triple",
   custom_width: "8.5",
@@ -171,6 +179,10 @@ async function refreshPresets() {
 }
 
 form.addEventListener("input", updatePreview);
+
+if (form.elements.date) {
+  form.elements.date.value = todayDate;
+}
 
 resetButton.addEventListener("click", () => {
   Object.entries(defaults).forEach(([key, value]) => {
