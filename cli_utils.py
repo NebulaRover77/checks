@@ -108,17 +108,3 @@ def prompt_page_size() -> tuple[float, float]:
     w = prompt_float("Enter page width (inches)", default=8.5, min=1.0)
     h = prompt_float("Enter page height (inches)", default=11.0, min=1.0)
     return (w, h)
-
-    choice = prompt_required("Select page size [1-4]", default="1",
-                             validator=lambda s: s in {"1","2","3","4"})
-    if choice == "1":
-        return (8.5, 11.0)
-    if choice == "2":
-        return (8.5, 14.0)
-    if choice == "3":
-        return (8.27, 11.69)
-
-    # Other/custom in inches
-    w = prompt_float("Enter page width (inches)", default=8.5, min=1.0)
-    h = prompt_float("Enter page height (inches)", default=11.0, min=1.0)
-    return (w, h)
