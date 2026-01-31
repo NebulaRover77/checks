@@ -1,3 +1,4 @@
+from decimal import Decimal, InvalidOperation
 from fpdf import FPDF
 import inflect
 from pathlib import Path
@@ -146,7 +147,11 @@ def add_check_titles(pdf, position=1):
 
 def number_to_words(amount):
     p = inflect.engine()
-    dollars, cents = str(amount).split('.')
+    try:
+        normalized_amount = Decimal(str(amount)).quantize(Decimal("0.01"))
+    except (InvalidOperation, ValueError, TypeError) as exc:
+        raise ValueError(f"Invalid amount for number_to_words: {amount!r}") from exc
+    dollars, cents = f"{normalized_amount:.2f}".split(".")
     dollar_words = p.number_to_words(int(dollars))
     if "and" in dollar_words:
         dollar_words = dollar_words.replace(" and", "")
