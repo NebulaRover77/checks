@@ -20,14 +20,27 @@ let devicePollTimer = null;
 let deviceCodeValue = null;
 let devicePollInterval = 5000;
 
-function setStatus(message, isError = false) {
-  statusEl.textContent = message;
+function setStatus(message, isError = false, allowHtml = false) {
+  if (allowHtml) {
+    statusEl.innerHTML = message;
+  } else {
+    statusEl.textContent = message;
+  }
   statusEl.classList.toggle("error", isError);
 }
 
-function setDeviceStatus(message, isError = false) {
-  deviceStatus.textContent = message;
+function setDeviceStatus(message, isError = false, allowHtml = false) {
+  if (allowHtml) {
+    deviceStatus.innerHTML = message;
+  } else {
+    deviceStatus.textContent = message;
+  }
   deviceStatus.classList.toggle("error", isError);
+}
+
+function formatMissingSettingMessage(payload) {
+  if (!payload || payload.error_code !== "missing_required_setting") return null;
+  return `Missing required setting ${payload.setting}. Update it on the <a href="/settings.html">settings page</a>.`;
 }
 
 async function refreshSsoStatus() {
@@ -35,6 +48,11 @@ async function refreshSsoStatus() {
     const response = await fetch("/api/sso/status");
     const payload = await response.json();
     if (!response.ok) {
+      const missingMessage = formatMissingSettingMessage(payload);
+      if (missingMessage) {
+        setDeviceStatus(missingMessage, true, true);
+        return;
+      }
       throw new Error(payload.error || "Unable to check SSO status.");
     }
     if (payload.authenticated) {
@@ -86,6 +104,11 @@ form.addEventListener("submit", async (event) => {
     });
     const payload = await response.json();
     if (!response.ok) {
+      const missingMessage = formatMissingSettingMessage(payload);
+      if (missingMessage) {
+        setStatus(missingMessage, true, true);
+        return;
+      }
       throw new Error(payload.error || "Unable to save settings.");
     }
     setStatus("Settings saved.");
@@ -107,6 +130,11 @@ deviceStartButton.addEventListener("click", async () => {
     const response = await fetch("/api/sso/device/start", { method: "POST" });
     const payload = await response.json();
     if (!response.ok) {
+      const missingMessage = formatMissingSettingMessage(payload);
+      if (missingMessage) {
+        setDeviceStatus(missingMessage, true, true);
+        return;
+      }
       throw new Error(payload.error || "Unable to start device login.");
     }
     deviceCodeValue = payload.device_code;
@@ -131,6 +159,13 @@ deviceStartButton.addEventListener("click", async () => {
           return;
         }
         if (!pollResponse.ok) {
+          const missingMessage = formatMissingSettingMessage(pollPayload);
+          if (missingMessage) {
+            setDeviceStatus(missingMessage, true, true);
+            clearInterval(devicePollTimer);
+            devicePollTimer = null;
+            return;
+          }
           throw new Error(pollPayload.error || "Device authorization failed.");
         }
         if (pollPayload.status === "authorized") {

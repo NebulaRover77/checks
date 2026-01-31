@@ -13,6 +13,7 @@ from flask import Flask, after_this_request, jsonify, redirect, request, send_fi
 
 from utilities import create_blank_check_pair, create_check
 import configurations
+import common_dsql
 
 app = Flask(__name__, static_folder="site", static_url_path="")
 
@@ -68,11 +69,22 @@ def _sync_global_settings(settings: dict) -> None:
 
 
 def _dsql_required_settings(settings: dict) -> dict:
-    import common_dsql
-
     _sync_global_settings(settings)
     return common_dsql.get_settings(
         ("START_URL", "SSO_REGION", "ACCOUNT_ID", "ROLE_NAME", "AWS_REGION", "DB_NAME", "DB_USER")
+    )
+
+
+def _missing_setting_response(exc: common_dsql.MissingSettingError):
+    return (
+        jsonify(
+            {
+                "error": str(exc),
+                "error_code": "missing_required_setting",
+                "setting": exc.key,
+            }
+        ),
+        400,
     )
 
 
@@ -372,6 +384,8 @@ def sso_status():
     settings = load_settings()
     try:
         cfg = _dsql_required_settings(settings)
+    except common_dsql.MissingSettingError as exc:
+        return _missing_setting_response(exc)
     except RuntimeError as exc:
         return jsonify({"authenticated": False, "error": str(exc)}), 400
     if not _boto3_available():
@@ -388,6 +402,8 @@ def sso_device_start():
     settings = load_settings()
     try:
         cfg = _dsql_required_settings(settings)
+    except common_dsql.MissingSettingError as exc:
+        return _missing_setting_response(exc)
     except RuntimeError as exc:
         return jsonify({"error": str(exc)}), 400
     if not _boto3_available():
@@ -415,6 +431,8 @@ def sso_device_poll():
     settings = load_settings()
     try:
         cfg = _dsql_required_settings(settings)
+    except common_dsql.MissingSettingError as exc:
+        return _missing_setting_response(exc)
     except RuntimeError as exc:
         return jsonify({"error": str(exc)}), 400
     if not _boto3_available():
@@ -443,6 +461,8 @@ def list_dsql_accounts():
     settings = load_settings()
     try:
         cfg = _dsql_required_settings(settings)
+    except common_dsql.MissingSettingError as exc:
+        return _missing_setting_response(exc)
     except RuntimeError as exc:
         return jsonify({"error": str(exc)}), 400
     if not _boto3_available():
@@ -472,6 +492,8 @@ def update_dsql_next_check(account_id: str):
     settings = load_settings()
     try:
         cfg = _dsql_required_settings(settings)
+    except common_dsql.MissingSettingError as exc:
+        return _missing_setting_response(exc)
     except RuntimeError as exc:
         return jsonify({"error": str(exc)}), 400
     if not _boto3_available():
@@ -560,6 +582,8 @@ def generate_blank():
     if account_source == "dsql":
         try:
             cfg = _dsql_required_settings(settings)
+        except common_dsql.MissingSettingError as exc:
+            return _missing_setting_response(exc)
         except RuntimeError as exc:
             return jsonify({"error": str(exc)}), 400
         if not _boto3_available():

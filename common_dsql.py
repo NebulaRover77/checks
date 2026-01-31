@@ -20,6 +20,14 @@ _REQUIRED_KEYS = (
     "TAG_VALUE",
 )
 
+
+class MissingSettingError(RuntimeError):
+    def __init__(self, key: str, config_path: str):
+        super().__init__(f"Missing required setting {key}.")
+        self.key = key
+        self.config_path = config_path
+
+
 def _config_path_str() -> str:
     try:
         return str(configurations.get_config_path())
@@ -35,10 +43,7 @@ def _require(key: str) -> str:
     v = cfg.get(key)
     if isinstance(v, str) and v:
         return v
-    raise RuntimeError(
-        f"Missing required setting {key}. Set it as an environment variable "
-        f"or add it to { _config_path_str() }."
-    )
+    raise MissingSettingError(key, _config_path_str())
 
 def _is_debug() -> bool:
     return os.environ.get("DSQL_DEBUG") not in (None, "", "0", "false", "False")

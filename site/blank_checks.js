@@ -33,9 +33,18 @@ const fields = {
 let latestRun = null;
 let dsqlAccounts = new Map();
 
-function setStatus(target, message, isError = false) {
-  target.textContent = message;
+function setStatus(target, message, isError = false, allowHtml = false) {
+  if (allowHtml) {
+    target.innerHTML = message;
+  } else {
+    target.textContent = message;
+  }
   target.classList.toggle("error", isError);
+}
+
+function formatMissingSettingMessage(payload) {
+  if (!payload || payload.error_code !== "missing_required_setting") return null;
+  return `Missing required setting ${payload.setting}. Update it on the <a href="/settings.html">settings page</a>.`;
 }
 
 function getAccountPayload() {
@@ -87,6 +96,12 @@ async function refreshAccounts() {
       const response = await fetch("/api/dsql/accounts");
       const payload = await response.json();
       if (!response.ok) {
+        const missingMessage = formatMissingSettingMessage(payload);
+        if (missingMessage) {
+          accountLoadButton.disabled = true;
+          setStatus(dsqlStatus, missingMessage, true, true);
+          return;
+        }
         throw new Error(payload.error || "Failed to load DSQL accounts.");
       }
       dsqlAccounts = new Map(
@@ -216,6 +231,12 @@ form.addEventListener("submit", async (event) => {
     });
     if (!response.ok) {
       const errorPayload = await response.json();
+      const missingMessage = formatMissingSettingMessage(errorPayload);
+      if (missingMessage) {
+        printResult.hidden = false;
+        setStatus(printStatus, missingMessage, true, true);
+        return;
+      }
       throw new Error(errorPayload.error || "Unable to generate blank checks.");
     }
     const blob = await response.blob();
@@ -261,6 +282,11 @@ printSuccessButton.addEventListener("click", async () => {
     });
     const payload = await response.json();
     if (!response.ok) {
+      const missingMessage = formatMissingSettingMessage(payload);
+      if (missingMessage) {
+        setStatus(printStatus, missingMessage, true, true);
+        return;
+      }
       throw new Error(payload.error || "Unable to update check number.");
     }
     const updatedValue = payload.last_check_number ?? payload.next_check_number;
